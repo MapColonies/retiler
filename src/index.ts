@@ -8,9 +8,10 @@ import 'reflect-metadata';
 import { container } from 'tsyringe';
 import { getApp } from './app';
 import { DEFAULT_SERVER_PORT, JOBS_QUEUE_PROVIDER, QUEUE_NAME, SERVICES } from './common/constants';
+import { ErrorWithExitCode } from './common/errors';
 import { ShutdownHandler } from './common/shutdownHandler';
-import { Retiler } from './retiler/retiler';
 import { JobsQueueProvider } from './retiler/interfaces';
+import { Retiler } from './retiler/retiler';
 
 interface IServerConfig {
   port: string;
@@ -61,7 +62,7 @@ void getApp()
 
     server.close();
   })
-  .catch(async (error: Error) => {
+  .catch(async (error: ErrorWithExitCode) => {
     if (container.isRegistered(SERVICES.LOGGER)) {
       const logger = container.resolve<Logger>(SERVICES.LOGGER);
       logger.error('😢 - failed initializing the server');
@@ -75,4 +76,7 @@ void getApp()
       const shutdownHandler = container.resolve(ShutdownHandler);
       await shutdownHandler.shutdown();
     }
+    
+    // TODO: add more exit codes
+    process.exit(error.exitCode);
   });
