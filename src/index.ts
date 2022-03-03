@@ -1,14 +1,16 @@
 /* eslint-disable import/first */
 // this import must be called before the first import of tsyring
-import 'reflect-metadata';
 import { createServer } from 'http';
 import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
-import { container } from 'tsyringe';
 import { get } from 'config';
-import { DEFAULT_SERVER_PORT, SERVICES } from './common/constants';
-
+import 'reflect-metadata';
+import { container } from 'tsyringe';
 import { getApp } from './app';
+import { DEFAULT_SERVER_PORT, JOBS_QUEUE_PROVIDER, QUEUE_NAME, SERVICES } from './common/constants';
+import { ShutdownHandler } from './common/shutdownHandler';
+import { Retiler } from './retiler/retiler';
+import { JobsQueueProvider } from './retiler/interfaces';
 
 interface IServerConfig {
   port: string;
@@ -17,12 +19,60 @@ interface IServerConfig {
 const serverConfig = get<IServerConfig>('server');
 const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
 
-const app = getApp();
+void getApp()
+  .then(async (app) => {
+    const logger = container.resolve<Logger>(SERVICES.LOGGER);
+    // TODO: handle liveness checks
+    const stubHealthcheck = async (): Promise<void> => Promise.resolve();
+    const shutdownHandler = container.resolve(ShutdownHandler);
+    const server = createTerminus(createServer(app), {
+      healthChecks: { '/liveness': stubHealthcheck },
+      onSignal: shutdownHandler.shutdown.bind(shutdownHandler),
+    });
 
-const logger = container.resolve<Logger>(SERVICES.LOGGER);
-const stubHealthcheck = async (): Promise<void> => Promise.resolve();
-const server = createTerminus(createServer(app), { healthChecks: { '/liveness': stubHealthcheck, onSignal: container.resolve('onSignal') } });
+    server.listen(port, () => {
+      logger.info(`app started on port ${port}`);
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    });
 
-server.listen(port, () => {
-  logger.info(`app started on port ${port}`);
-});
+    const queueName = container.resolve<string>(QUEUE_NAME);
+
+    const tiler = container.resolve(Retiler);
+    const JobsQueueProvider: JobsQueueProvider = container.resolve(JOBS_QUEUE_PROVIDER);
+
+    let counter = 0;
+    while (!(await JobsQueueProvider.isEmpty())) {
+      await tiler.proccessRequest();
+
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+      if (counter % 1000 && counter > 0) {
+        logger.info(`processed ${counter++} jobs in queue '${queueName}'`);
+      }
+    }
+
+    logger.info(`queue '${queueName}' was consumed and proccessed ${counter}`);
+
+    // queue is empty, stop the server
+    server.on('close', () => {
+      void shutdownHandler.shutdown();
+      server.unref();
+      process.exit();
+    });
+
+    server.close();
+  })
+  .catch(async (error: Error) => {
+    if (container.isRegistered(SERVICES.LOGGER)) {
+      const logger = container.resolve<Logger>(SERVICES.LOGGER);
+      logger.error('😢 - failed initializing the server');
+      logger.error(error);
+    } else {
+      console.error('😢 - failed initializing the server');
+      console.error(error);
+    }
+
+    if (container.isRegistered(ShutdownHandler)) {
+      const shutdownHandler = container.resolve(ShutdownHandler);
+      await shutdownHandler.shutdown();
+    }
+  });

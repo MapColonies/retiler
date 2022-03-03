@@ -1,7 +1,4 @@
 {
-  "openapiConfig": {
-    "filePath": "OPENAPI_FILE_PATH"
-  },
   "telemetry": {
     "serviceName": "TELEMETRY_SERVICE_NAME",
     "hostname": "TELEMETRY_HOST_NAME",
@@ -24,18 +21,53 @@
     }
   },
   "server": {
-    "port": "SERVER_PORT",
-    "request": {
-      "payload": {
-        "limit": "REQUEST_PAYLOAD_LIMIT"
+    "port": "SERVER_PORT"
+  },
+  "app": {
+    "projectName": "APP_PROJECT_NAME",
+    "queueName": "QUEUE_NAME",
+    "jobsQueue": {
+      "pg-boss": {
+        "db": {
+          "host": "DB_HOST",
+          "port": {
+            "__name": "DB_PORT",
+            "__format": "number"
+          },
+          "user": "DB_USERNAME",
+          "password": "DB_PASSWORD",
+          "schema": "DB_SCHEMA",
+          "enableSslAuth": {
+            "__name": "DB_ENABLE_SSL_AUTH",
+            "__format": "boolean"
+          },
+          "sslPaths": {
+            "ca": "DB_CA_PATH",
+            "key": "DB_KEY_PATH",
+            "cert": "DB_CERT_PATH"
+          },
+          "database": "DB_NAME"
+        },
+        "maintenance": {
+          "noSupervisor": {
+            "__name": "NO_SUPERVISOR",
+            "__format": "boolean"
+          }
+        }
       }
     },
-    "response": {
-      "compression": {
-        "enabled": {
-          "__name": "RESPONSE_COMPRESSION_ENABLED",
-          "__format": "boolean"
-        }
+    "map": {
+      "url": "MAP_URL"
+    },
+    "tilesStorage": {
+      "s3ClientConfig": {
+        "endpoint": "S3_ENDPOINT",
+        "region": "S3_REGION"
+      },
+      "s3Bucket": "S3_BUCKET",
+      "reverseY": {
+        "__name": "REVERSE_Y",
+        "__format": "boolean"
       }
     }
   }

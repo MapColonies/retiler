@@ -1,126 +1,49 @@
-# Map Colonies typescript service template
+# Retiler
 
 ----------------------------------
 
-![badge-alerts-lgtm](https://img.shields.io/lgtm/alerts/github/MapColonies/ts-server-boilerplate?style=for-the-badge)
+![badge-alerts-lgtm](https://img.shields.io/lgtm/alerts/github/MapColonies/retiler?style=for-the-badge)
 
-![grade-badge-lgtm](https://img.shields.io/lgtm/grade/javascript/github/MapColonies/ts-server-boilerplate?style=for-the-badge)
+![grade-badge-lgtm](https://img.shields.io/lgtm/grade/javascript/github/MapColonies/retiler?style=for-the-badge)
 
-![snyk](https://img.shields.io/snyk/vulnerabilities/github/MapColonies/ts-server-boilerplate?style=for-the-badge)
+![snyk](https://img.shields.io/snyk/vulnerabilities/github/MapColonies/retiler?style=for-the-badge)
 
 ----------------------------------
+retiler is a thin service that supposed to run as a [k8s job](https://kubernetes.io/docs/concepts/workloads/controllers/job/). It will retile a web map service and store the output tiles in a storage.
 
-This is a basic repo template for building new MapColonies web services in Typescript.
 
-### Template Features:
+## Introduction
 
-- eslint configuration by [@map-colonies/eslint-config](https://github.com/MapColonies/eslint-config)
+retiler is build from four main parts:
+- **jobs queue provider** - a queue of jobs that hold tiles
+- **map provider** - fetches a web map based on the tile (metatile)
+- **map splitter provider** - splits the web map to single tiles e.g. `metatile=1`
+- **tiles storage provider** - stores tiles to a storage
 
-- prettier configuration by [@map-colonies/prettier-config](https://github.com/MapColonies/prettier-config)
 
-- jest
+## Installation & Usage
 
-- .nvmrc
+### Locally
 
-- Multi stage producton-ready Dockerfile
-
-- commitlint
-
-- git hooks
-
-- logging by [@map-colonies/js-logger](https://github.com/MapColonies/js-logger)
-
-- OpenAPI request validation
-
-- config load with [node-config](https://www.npmjs.com/package/node-config)
-
-- Tracing and metrics by [@map-colonies/telemetry](https://github.com/MapColonies/telemetry)
-
-- github templates
-
-- bug report
-
-- feature request
-
-- pull request
-
-- github actions
-
-- on pull_request
-
-- LGTM
-
-- test
-
-- lint
-
-- snyk
-
-## API
-Checkout the OpenAPI spec [here](/openapi3.yaml)
-
-## Installation
-
-Install deps with npm
+Use locally by cloning from GitHub
 
 ```bash
+git clone https://github.com/MapColonies/retiler.git
+cd retiler
 npm install
-```
-### Install Git Hooks
-```bash
-npx husky install
-```
-
-## Run Locally
-
-Clone the project
-
-```bash
-
-git clone https://link-to-project
-
-```
-
-Go to the project directory
-
-```bash
-
-cd my-project
-
-```
-
-Install dependencies
-
-```bash
-
-npm install
-
-```
-
-Start the server
-
-```bash
-
 npm run start
+```
 
+### k8s
+
+Build an image to run as a k8s job
+
+```docker
+docker build --rm -t retiler:TAG .
 ```
 
 ## Running Tests
 
-To run tests, run the following command
-
 ```bash
-
 npm run test
-
-```
-
-To only run unit tests:
-```bash
-npm run test:unit
-```
-
-To only run integration tests:
-```bash
-npm run test:integration
 ```
