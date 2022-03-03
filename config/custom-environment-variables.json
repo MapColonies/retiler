@@ -62,7 +62,11 @@
     "tilesStorage": {
       "s3ClientConfig": {
         "endpoint": "S3_ENDPOINT",
-        "region": "S3_REGION"
+        "region": "S3_REGION",
+        "forcePathStyle": {
+          "__name": "S3_FORCE_PATH_STYLE",
+          "__format": "boolean"
+        }
       },
       "s3Bucket": "S3_BUCKET",
       "reverseY": {
