@@ -1,7 +1,5 @@
 # Retiler
 
-----------------------------------
-
 ![badge-alerts-lgtm](https://img.shields.io/lgtm/alerts/github/MapColonies/retiler?style=for-the-badge)
 
 ![grade-badge-lgtm](https://img.shields.io/lgtm/grade/javascript/github/MapColonies/retiler?style=for-the-badge)
@@ -20,6 +18,38 @@ retiler is build from four main parts:
 - **map splitter provider** - splits the web map to single tiles e.g. `metatile=1`
 - **tiles storage provider** - stores tiles to a storage
 
+## Writing Retiler Providers
+
+Implementation details for all providers could be found [here](./src/retiler/interfaces.ts). The sections bellow provide a short overview of the providers used by retiler.
+
+### jobs queue provider
+
+this provider should implement the functions bellow
+- `get()` get a job from the queue
+- `complete()` mark the job as completed
+- `fail()` mark the job as failed
+- `isEmpty()` check if the queue is empty
+
+retiler checks when the queue is empty using `isEmpty()` and if so successfully terminates the k8s job
+
+### map provider
+
+this provider should implement the functions bellow
+- `getMapStream()` get a readable stream of the map image payload
+
+this provider may implement the functions bellow
+- *`getMap()`* get an http response with a buffer of the map image payload
+
+### map splitter provider
+
+this provider should implement the functions bellow
+- `generateSplitPipeline()` creates a Duplex stream that will tile the map image
+
+### tiles storage provider
+
+this provider should implement the functions bellow
+
+- `set()` store the tiles in a storage
 
 ## Installation & Usage
 
@@ -39,7 +69,7 @@ npm run start
 Build an image to run as a k8s job
 
 ```docker
-docker build --rm -t retiler:TAG .
+docker build --rm -t retiler:<TAG> .
 ```
 
 ## Running Tests
