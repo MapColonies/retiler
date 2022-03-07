@@ -1,4 +1,3 @@
-import { Tile } from '@map-colonies/tile-calc';
 import PgBoss, { ConstructorOptions } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { DB_OPTIONS, QUEUE_NAME } from '../../common/constants';
