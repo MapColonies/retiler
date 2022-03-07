@@ -15,6 +15,8 @@ import {
 import { JobsQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
 import { TilesLayout, tileToLayout as tileToPathLayout } from './tilesPath';
 
+const SCALE_FACTOR = 2;
+
 @injectable()
 export class Retiler {
   public constructor(
@@ -31,7 +33,7 @@ export class Retiler {
   public readonly proccessRequest = async (): Promise<boolean> => {
     // get a job from the queue (using pg-boss)
     const job = await this.jobsQueueProvider.get<Tile>();
-
+    
     if (job === null) {
       this.logger.info(`queue '${this.queueName}' is empty`);
       return false;
@@ -72,18 +74,25 @@ export class Retiler {
       // writeFileSync('./output/fssyncimage.png', syncData);
 
       // pipe the map stream to tile splitting pipeline
-      this.logger.debug(`job '${name}' with unique id '${id}' splitting map to ${metatile} by ${metatile} tiles`);
+      this.logger.debug(`job '${name}' with unique id '${id}' splitting map to ${metatile}x${metatile} tiles`);
       mapStream.pipe(pipeline);
 
       // Promise.all keeps the order of the passed Promises, so buffers and tiles vars will have the same order
       const buffers = await Promise.all(promises);
 
       const tilesPromises: Promise<void>[] = tiles.map(async (tile, i) => {
-        // transform tiles to paths layouts to store on the provided storage
+        if (
+          tile.x >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesX / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z ||
+          tile.y >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z
+        ) {
+          return;
+        }
+
         if (this.reverseY) {
+          // transform tiles to paths layouts to store on the provided storage
           // we currently assume that the tile grid used is of WORLD CRS84
           // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          tile.y = TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY * 2 ** tile.z - tile.y - 1;
+          tile.y = (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
         }
 
         const tilePathLayout = tileToPathLayout(tile, TilesLayout.ZXY, `/${this.queueName}`, undefined, 'png');
