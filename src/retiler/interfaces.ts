@@ -1,6 +1,5 @@
-import { IncomingMessage } from 'http';
 import { RequestOptions } from 'https';
-import { Duplex } from 'stream';
+import { Duplex, Readable } from 'stream';
 import { ObjectCannedACL } from '@aws-sdk/client-s3';
 import { Tile } from '@map-colonies/tile-calc';
 import { Job } from './jobsQueueProvider/interfaces';
@@ -14,12 +13,12 @@ export interface JobsQueueProvider {
 }
 
 export interface MapProvider {
-  getMap: (options: string | RequestOptions | URL) => Promise<HttpResponse<Buffer>>;
-  getMapStream: (options: string | RequestOptions | URL) => Promise<IncomingMessage>;
+  getMapStream: (options: string | RequestOptions | URL) => Promise<Readable>;
+  getMap?: (options: string | RequestOptions | URL) => Promise<HttpResponse<Buffer>>;
 }
 
 export interface MapSplitterProvider {
-  generateSplitPipeline: (tile: Tile) => { promises: Promise<Buffer>[]; tiles: Tile[]; pipeline: Duplex }; //Promise<Duplex>;
+  generateSplitPipeline: (tile: Tile) => { promises: Promise<Buffer>[]; tiles: Tile[]; pipeline: Duplex };
 }
 
 export interface TilesStorageProvider {

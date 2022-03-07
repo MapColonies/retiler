@@ -1,6 +1,6 @@
 import { IncomingMessage } from 'http';
 import { get, RequestOptions } from 'https';
-import { Transform } from 'stream';
+import { Readable, Transform } from 'stream';
 import { injectable } from 'tsyringe';
 import { MapProvider } from '../interfaces';
 import { HttpResponse } from './interfaces';
@@ -37,7 +37,7 @@ export class HttpsMap implements MapProvider {
     });
   }
 
-  public async getMapStream(options: string | RequestOptions | URL): Promise<IncomingMessage> {
+  public async getMapStream(options: string | RequestOptions | URL): Promise<Readable> {
     return new Promise((resolve, reject) => {
       get(options, (response: IncomingMessage) => {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
