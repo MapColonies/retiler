@@ -41,17 +41,21 @@ void getApp()
     const tiler = container.resolve(Retiler);
     const JobsQueueProvider: JobsQueueProvider = container.resolve(JOBS_QUEUE_PROVIDER);
 
+    const startTime = performance.now();
     let counter = 0;
     while (!(await JobsQueueProvider.isEmpty())) {
       await tiler.proccessRequest();
+      counter++;
 
       // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (counter % 1000 && counter > 0) {
-        logger.info(`processed ${counter++} jobs in queue '${queueName}'`);
+      if (counter % 1000) {
+        logger.info(`processed ${counter} jobs in queue '${queueName}'`);
       }
     }
 
-    logger.info(`queue '${queueName}' was consumed and proccessed ${counter}`);
+    const endTime = performance.now();
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    logger.info(`queue '${queueName}' was consumed and proccessed ${counter} metatiles in ${Math.round((endTime - startTime) / 1000)}s`);
 
     // queue is empty, stop the server
     server.on('close', () => {
@@ -76,7 +80,7 @@ void getApp()
       const shutdownHandler = container.resolve(ShutdownHandler);
       await shutdownHandler.shutdown();
     }
-    
+
     // TODO: add more exit codes
     process.exit(error.exitCode);
   });

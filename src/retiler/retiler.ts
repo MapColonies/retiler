@@ -31,7 +31,11 @@ export class Retiler {
   ) {}
 
   public readonly proccessRequest = async (): Promise<boolean> => {
+    let startTime: number, endTime: number;
+    const startTotalTime = performance.now();
+
     // get a job from the queue (using pg-boss)
+    startTime = performance.now();
     const job = await this.jobsQueueProvider.get<Tile>();
     
     if (job === null) {
@@ -40,6 +44,9 @@ export class Retiler {
     }
 
     const { data: tile, id, name } = job;
+
+    endTime = performance.now();
+    this.logger.debug(`job '${name}' with unique id '${id}' was fetched from queue ink ${endTime - startTime}ms`);
 
     try {
       const metatile = tile.metatile ?? 1;
@@ -62,6 +69,7 @@ export class Retiler {
 
       // fetch a web map from the url and create a readable map stream (using https)
       this.logger.debug(`job '${name}' with unique id '${id}' invoking GET request to '${URL}'`);
+      startTime = performance.now();
       const mapStream = await this.mapProvider.getMapStream(URL);
 
       // prepare tile splitting pipeline (using sharp)
@@ -79,6 +87,8 @@ export class Retiler {
 
       // Promise.all keeps the order of the passed Promises, so buffers and tiles vars will have the same order
       const buffers = await Promise.all(promises);
+      endTime = performance.now();
+      this.logger.debug(`job '${name}' with unique id '${id}' got a web map and splitted to tiles in ${endTime - startTime}ms`);
 
       const tilesPromises: Promise<void>[] = tiles.map(async (tile, i) => {
         if (
@@ -102,11 +112,20 @@ export class Retiler {
       });
 
       this.logger.debug(`job '${name}' with unique id '${id}' storing tiles in storage`);
+      startTime = performance.now();
       await Promise.all(tilesPromises); // Promise.all keeps the order of the passed Promises
+      endTime = performance.now();
+      this.logger.debug(`job '${name}' with unique id '${id}' stored tiles successfully in ${endTime - startTime}ms`);
 
       // update the queue that job completed
       await this.jobsQueueProvider.complete(id);
-      this.logger.debug(`job '${name}' with unique id '${id}' completed successfully`);
+
+      const endTotalTime = performance.now();
+      this.logger.debug(
+        `job '${name}' with unique id '${id}' of tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${metatile}) completed successfully in ${
+          endTotalTime - startTotalTime
+        }ms`
+      );
       return true;
     } catch (err: unknown) {
       this.logger.error(err as Error);
