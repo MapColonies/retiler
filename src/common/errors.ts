@@ -14,3 +14,10 @@ export class S3Error extends ErrorWithExitCode {
     Object.setPrototypeOf(this, S3Error.prototype);
   }
 }
+
+export class HttpUpstreamResponseError extends ErrorWithExitCode {
+  public constructor(message?: string) {
+    super(message, ExitCodes.REMOTE_SERVICE_RESPONSE_ERROR);
+    Object.setPrototypeOf(this, HttpUpstreamResponseError.prototype);
+  }
+}

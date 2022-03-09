@@ -2,6 +2,7 @@ import { IncomingMessage } from 'http';
 import { get, RequestOptions } from 'https';
 import { Readable, Transform } from 'stream';
 import { injectable } from 'tsyringe';
+import { HttpUpstreamResponseError } from '../../common/errors';
 import { MapProvider } from '../interfaces';
 import { HttpResponse } from './interfaces';
 
@@ -12,7 +13,7 @@ export class HttpsMap implements MapProvider {
       get(options, (response: IncomingMessage) => {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         if (response.statusCode !== undefined && (response.statusCode < 200 || response.statusCode > 299)) {
-          return reject(new Error(`failed to download, got response code '${response.statusCode}'`));
+          return reject(new HttpUpstreamResponseError(`failed to download, got response code '${response.statusCode}'`));
         }
 
         const data = new Transform();
@@ -20,11 +21,11 @@ export class HttpsMap implements MapProvider {
         response.on('data', (chunk) => data.push(chunk));
         response.on('end', () => {
           if (response.statusCode === undefined) {
-            return reject(new Error(`failed to download, response code was not sent`));
+            return reject(new HttpUpstreamResponseError(`failed to download, status code was not sent`));
           }
 
           if (response.headers['content-type'] == null) {
-            return reject(new Error(`failed to download, content-type header was not sent`));
+            return reject(new HttpUpstreamResponseError(`failed to download, content-type header was not sent`));
           }
 
           resolve({
@@ -42,7 +43,7 @@ export class HttpsMap implements MapProvider {
       get(options, (response: IncomingMessage) => {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         if (response.statusCode !== undefined && (response.statusCode < 200 || response.statusCode > 299)) {
-          reject(new Error(`failed to download, got response code '${response.statusCode}'`));
+          reject(new HttpUpstreamResponseError(`failed to download, got response code '${response.statusCode}'`));
         }
 
         response.on('error', (err) => {
