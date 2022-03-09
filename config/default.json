@@ -42,8 +42,10 @@
         "forcePathStyle": true
       },
       "s3Bucket": "bucket-name",
-      "reverseY": true,
-      "tileLayout": "ZXY"
+      "tilePathLayout": {
+        "reverseY": true,
+        "tileLayout": "ZXY"
+      }
     }
   }
 }

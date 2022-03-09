@@ -1,5 +1,10 @@
 import { Tile } from '@map-colonies/tile-calc';
 
+export interface TilePathLayout {
+  tileLayout: TileLayout;
+  reverseY: boolean;
+}
+
 /**
  * @enum Tile layouts
  */

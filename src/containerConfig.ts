@@ -13,13 +13,12 @@ import {
   MAP_URL,
   PROJECT_NAME_SYMBOL,
   QUEUE_NAME,
-  REVERSE_Y,
   S3_BUCKET,
   S3_CLIENT_CONFIG,
   SERVICES,
   SERVICE_NAME,
   TILES_STORAGE_PROVIDER,
-  TILE_LAYOUT,
+  TILE_PATH_LAYOUT,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -28,7 +27,7 @@ import { PgBossJobsQueue } from './retiler/jobsQueueProvider/pgboss';
 import { createDatabaseOptions, DbConfig, DbOptions } from './retiler/jobsQueueProvider/pgbossFactory';
 import { HttpsMap } from './retiler/mapProvider/https';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
-import { TileLayout } from './retiler/tilesPath';
+import { TilePathLayout } from './retiler/tilesPath';
 import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
 
 export interface RegisterOptions {
@@ -61,8 +60,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
       { token: S3_CLIENT_CONFIG, provider: { useValue: { ...config.get<S3ClientConfig>('app.tilesStorage.s3ClientConfig') } } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
-      { token: REVERSE_Y, provider: { useValue: config.get<boolean>('app.tilesStorage.reverseY') } },
-      { token: TILE_LAYOUT, provider: { useValue: config.get<TileLayout>('app.tilesStorage.tileLayout') } },
+      { token: TILE_PATH_LAYOUT, provider: { useValue: config.get<TilePathLayout>('app.tilesStorage.tilePathLayout') } },
       { token: QUEUE_NAME, provider: { useValue: config.get<string>('app.queueName') } },
       { token: DB_OPTIONS, provider: { useValue: dbOptions } },
       { token: JOBS_QUEUE_PROVIDER, provider: { useClass: PgBossJobsQueue } },

@@ -1,3 +1,4 @@
+import { Readable } from 'stream';
 import { Logger } from '@map-colonies/js-logger';
 import { Tile, TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { inject, injectable } from 'tsyringe';
@@ -8,13 +9,13 @@ import {
   MAP_SPLITTER_PROVIDER,
   MAP_URL,
   QUEUE_NAME,
-  REVERSE_Y,
   SERVICES,
   TILES_STORAGE_PROVIDER,
-  TILE_LAYOUT,
+  TILE_PATH_LAYOUT,
 } from '../common/constants';
 import { JobsQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
-import { TileLayout, tileToPathLayout } from './tilesPath';
+import { Job } from './jobsQueueProvider/interfaces';
+import { TilePathLayout, tileToPathLayout } from './tilesPath';
 
 const SCALE_FACTOR = 2;
 
@@ -24,8 +25,7 @@ export class Retiler {
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
     @inject(MAP_URL) private readonly mapURL: string,
-    @inject(REVERSE_Y) private readonly reverseY: string,
-    @inject(TILE_LAYOUT) private readonly tileLayout: TileLayout,
+    @inject(TILE_PATH_LAYOUT) private readonly tilePathLayout: TilePathLayout,
     @inject(JOBS_QUEUE_PROVIDER) private readonly jobsQueueProvider: JobsQueueProvider,
     @inject(MAP_PROVIDER) private readonly mapProvider: MapProvider,
     @inject(MAP_SPLITTER_PROVIDER) private readonly mapSplitter: MapSplitterProvider,
@@ -36,97 +36,46 @@ export class Retiler {
     let startTime: number, endTime: number;
     const startTotalTime = performance.now();
 
-    // get a job from the queue (using pg-boss)
+    // get a job from the queue
     startTime = performance.now();
-    const job = await this.jobsQueueProvider.get<Tile>();
+    const job = await this.getJob();
 
-    if (job === null) {
+    if (job === false) {
       this.logger.info(`queue '${this.queueName}' is empty`);
       return false;
     }
 
-    const { data: tile, id, name } = job;
+    const { data, id, name } = job;
+    const tile: Required<Tile> = { metatile: 1, ...data };
+
+    const logJobMessage = `job '${name}' with unique id '${id}'`;
 
     endTime = performance.now();
-    this.logger.debug(`job '${name}' with unique id '${id}' was fetched from queue ink ${Math.round(endTime - startTime)}ms`);
+    this.logger.debug(`${logJobMessage} was fetched from queue in ${Math.round(endTime - startTime)}ms`);
 
     try {
-      const metatile = tile.metatile ?? 1;
-      this.logger.debug(`job '${name}' with unique id '${id}' working on tile z:${tile.z}, x:${tile.x}, y:${tile.y}, metatile:${metatile}`);
+      this.logger.debug(`${logJobMessage} working on tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${tile.metatile}`);
+      const mapStream = await this.generateMapStream(tile);
 
-      // convert tile to bounding box
+      this.logger.debug(`${logJobMessage} splitting map to ${tile.metatile}x${tile.metatile} tiles`);
+      const { buffers, tiles } = await this.splitMapStreamToTiles(tile, mapStream);
 
-      // TODO: add a provider that utilizes esri packages
-      // https://esri.github.io/arcgis-rest-js/api/request/withOptions/
-      // https://github.com/Esri/arcgis-rest-js/tree/master/packages/arcgis-rest-types
-      // https://github.com/Esri/arcgis-rest-js/tree/master/packages/arcgis-rest-request
-      const imageSize = metatile * DEFAULT_TILE_SIZE;
-      const bbox = tileToBoundingBox(tile);
-      // TODO: move request params relevant to arcgis-server to the relevant file
-      const bboxRequestParam = `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
-      const imageSizeParam = `${imageSize},${imageSize}`;
-
-      // TODO: maybe the endpoint should be a template endpoint that uses `projectName`
-      const URL = `${this.mapURL}?bbox=${bboxRequestParam}&bboxSR=&layers=&layerDefs=&size=${imageSizeParam}&imageSR=&historicMoment=&format=png&transparent=true&dpi=&time=&layerTimeOptions=&dynamicLayers=&gdbVersion=&mapScale=&rotation=&datumTransformations=&layerParameterValues=&mapRangeValues=&layerRangeValues=&f=image`;
-
-      // fetch a web map from the url and create a readable map stream (using https)
-      this.logger.debug(`job '${name}' with unique id '${id}' invoking GET request to '${URL}'`);
+      this.logger.debug(`${logJobMessage} storing tiles in storage`);
       startTime = performance.now();
-      const mapStream = await this.mapProvider.getMapStream(URL);
 
-      // prepare tile splitting pipeline (using sharp)
+      await this.storeTiles(tiles, buffers);
 
-      // returns a pipeline to pipe a stream to and promises that will resolve when the pipeline completes all tile splitting
-      const { promises, tiles, pipeline } = this.mapSplitter.generateSplitPipeline(tile);
-
-      // if using a sync flow use the code bellow
-      // const { data: syncData } = await this.mapProvider.getMap(URL);
-      // writeFileSync('./output/fssyncimage.png', syncData);
-
-      // pipe the map stream to tile splitting pipeline
-      this.logger.debug(`job '${name}' with unique id '${id}' splitting map to ${metatile}x${metatile} tiles`);
-      mapStream.pipe(pipeline);
-
-      // Promise.all keeps the order of the passed Promises, so buffers and tiles vars will have the same order
-      const buffers = await Promise.all(promises);
       endTime = performance.now();
-      this.logger.debug(`job '${name}' with unique id '${id}' got a web map and splitted to tiles in ${Math.round(endTime - startTime)}ms`);
+      this.logger.debug(`${logJobMessage} stored tiles successfully in ${Math.round(endTime - startTime)}ms`);
 
-      const tilesPromises: Promise<void>[] = tiles.map(async (tile, i) => {
-        if (
-          tile.x >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesX / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z ||
-          tile.y >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z
-        ) {
-          return;
-        }
-
-        if (this.reverseY) {
-          // transform tiles to paths layouts to store on the provided storage
-          // we currently assume that the tile grid used is of WORLD CRS84
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          tile.y = (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
-        }
-
-        const tilePathLayout = tileToPathLayout(tile, this.tileLayout, `/${this.queueName}`, undefined, 'png');
-
-        // store tiles (with @aws-sdk/clients-s3)
-        return this.tilesStorageProvider.set(tilePathLayout, buffers[i]);
-      });
-
-      this.logger.debug(`job '${name}' with unique id '${id}' storing tiles in storage`);
-      startTime = performance.now();
-      await Promise.all(tilesPromises); // Promise.all keeps the order of the passed Promises
-      endTime = performance.now();
-      this.logger.debug(`job '${name}' with unique id '${id}' stored tiles successfully in ${Math.round(endTime - startTime)}ms`);
-
-      // update the queue that job completed
+      // update the queue that the job completed successfully
       await this.jobsQueueProvider.complete(id);
 
       const endTotalTime = performance.now();
       this.logger.debug(
-        `job '${name}' with unique id '${id}' of tile (z,x,y,metatile):(${tile.z},${tile.x},${
-          tile.y
-        },${metatile}) completed successfully in ${Math.round(endTotalTime - startTotalTime)}ms`
+        `${logJobMessage} of tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${tile.metatile}) completed successfully in ${Math.round(
+          endTotalTime - startTotalTime
+        )}ms`
       );
       return true;
     } catch (err: unknown) {
@@ -136,4 +85,73 @@ export class Retiler {
       return false;
     }
   };
+
+  private async getJob(): Promise<Job<Tile> | false> {
+    const job = await this.jobsQueueProvider.get<Tile>();
+
+    if (job === null) {
+      return false;
+    }
+
+    return job;
+  }
+
+  private async generateMapStream(tile: Required<Tile>): Promise<Readable> {
+    // TODO: consider adding a provider that utilizes esri packages
+    // https://esri.github.io/arcgis-rest-js/api/request/withOptions/
+    // https://github.com/Esri/arcgis-rest-js/tree/master/packages/arcgis-rest-types
+    // https://github.com/Esri/arcgis-rest-js/tree/master/packages/arcgis-rest-request
+
+    // convert tile to bounding box
+    const imageSize = tile.metatile * DEFAULT_TILE_SIZE;
+    const bbox = tileToBoundingBox(tile);
+    // TODO: move request params relevant to arcgis-server to the relevant file
+    const bboxRequestParam = `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
+    const imageSizeParam = `${imageSize},${imageSize}`;
+
+    const URL = `${this.mapURL}?bbox=${bboxRequestParam}&bboxSR=&layers=&layerDefs=&size=${imageSizeParam}&imageSR=&historicMoment=&format=png&transparent=true&dpi=&time=&layerTimeOptions=&dynamicLayers=&gdbVersion=&mapScale=&rotation=&datumTransformations=&layerParameterValues=&mapRangeValues=&layerRangeValues=&f=image`;
+
+    // fetch a web map from the url and create a readable map stream
+    return this.mapProvider.getMapStream(URL);
+  }
+
+  private async splitMapStreamToTiles(tile: Required<Tile>, mapStream: Readable): Promise<{ buffers: Buffer[]; tiles: Tile[] }> {
+    // returns a pipeline to pipe a stream to and promises that will resolve when the pipeline completes all tile splitting
+    const { promises, tiles, pipeline } = this.mapSplitter.generateSplitPipeline(tile);
+
+    // if using a sync flow use the code bellow
+    // const { data: syncData } = await this.mapProvider.getMap(URL);
+    // writeFileSync('./output/fssyncimage.png', syncData);
+
+    // pipe the map stream to tile splitting pipeline
+    mapStream.pipe(pipeline);
+
+    // Promise.all keeps the order of the passed Promises, so buffers and tiles variables will have the same order
+    return { buffers: await Promise.all(promises), tiles: tiles };
+  }
+
+  private async storeTiles(tiles: Tile[], buffers: Buffer[]): Promise<void> {
+    const tilesPromises: Promise<void>[] = tiles.map(async (tile, i) => {
+      if (
+        tile.x >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesX / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z ||
+        tile.y >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z
+      ) {
+        return;
+      }
+
+      if (this.tilePathLayout.reverseY) {
+        // transform tiles to paths layouts to store on the provided storage
+        // we currently assume that the tile grid used is WORLD CRS84
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+        tile.y = (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
+      }
+
+      const tilePathLayout = tileToPathLayout(tile, this.tilePathLayout.tileLayout, `/${this.queueName}`, undefined, 'png');
+
+      // store tiles
+      return this.tilesStorageProvider.set(tilePathLayout, buffers[i]);
+    });
+
+    await Promise.all(tilesPromises); // Promise.all keeps the order of the passed Promises
+  }
 }
