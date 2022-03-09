@@ -130,8 +130,9 @@ export class Retiler {
       );
       return true;
     } catch (err: unknown) {
-      this.logger.error(err as Error);
-      await this.jobsQueueProvider.fail(id);
+      const error = err as Error;
+      this.logger.error(error);
+      await this.jobsQueueProvider.fail(id, error);
       return false;
     }
   };

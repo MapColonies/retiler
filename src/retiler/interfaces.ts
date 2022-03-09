@@ -7,9 +7,9 @@ import { HttpResponse } from './mapProvider/interfaces';
 
 export interface JobsQueueProvider {
   get: <T>() => Promise<Job<T> | null>;
-  complete: (id: string) => Promise<void>;
-  fail: (id: string) => Promise<void>;
   isEmpty: () => Promise<boolean>;
+  complete: (id: string) => Promise<void>;
+  fail: ((id: string) => Promise<void>) & ((id: string, data: object) => Promise<void>);
 }
 
 export interface MapProvider {
