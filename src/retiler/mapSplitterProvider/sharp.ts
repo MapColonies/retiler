@@ -4,6 +4,8 @@ import sharp from 'sharp';
 import { DEFAULT_TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
 
+// see https://sharp.pixelplumbing.com/api-utility for more global sharp properties that can affect performance (concurrency, cache)
+// add implementation to these properties if needed
 export class SharpMapSplitter implements MapSplitterProvider {
   public generateSplitPipeline(tile: Tile): { promises: Promise<Buffer>[]; tiles: Tile[]; pipeline: Duplex } {
     const metatile = tile.metatile ?? 1;

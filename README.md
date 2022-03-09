@@ -26,11 +26,11 @@ Implementation details for all providers could be found [here](./src/retiler/int
 
 this provider should implement the functions bellow
 - `get()` get a job from the queue
+- `isEmpty()` check if the queue is empty
 - `complete()` mark the job as completed
 - `fail()` mark the job as failed
-- `isEmpty()` check if the queue is empty
 
-retiler checks when the queue is empty using `isEmpty()` and if so successfully terminates the k8s job
+retiler checks when the queue is empty using `isEmpty()` and if so it successfully terminates the k8s job
 
 ### map provider
 
@@ -52,6 +52,8 @@ this provider should implement the functions bellow
 - `set()` store the tiles in a storage
 
 ## Installation & Usage
+
+After retiler is cloned, currently, this [file](./src/containerConfig.ts) must be updated to inject the needed providers. Following this the relevant env variables must be set up to support the selection of the providers.
 
 ### Locally
 
