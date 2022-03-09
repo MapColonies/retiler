@@ -72,7 +72,8 @@
       "reverseY": {
         "__name": "REVERSE_Y",
         "__format": "boolean"
-      }
+      },
+      "tileLayout": "TILE_LAYOUT"
     }
   }
 }

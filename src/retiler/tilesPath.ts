@@ -3,7 +3,7 @@ import { Tile } from '@map-colonies/tile-calc';
 /**
  * @enum Tile layouts
  */
-export enum TilesLayout {
+export enum TileLayout {
   XYZ = 'XYZ',
   YXZ = 'YXZ',
   ZXY = 'ZXY',
@@ -19,20 +19,20 @@ export enum TilesLayout {
  * @param format an image format
  * @returns tile layout path
  */
-export const tileToLayout = (tile: Tile, tilesLayout?: TilesLayout, prefixPath = '', suffixPath = '', format = ''): string => {
+export const tileToPathLayout = (tile: Tile, tilesLayout?: TileLayout, prefixPath = '', suffixPath = '', format = ''): string => {
   let tilePathLayout: string;
 
   switch (tilesLayout) {
-    case TilesLayout.XYZ:
+    case TileLayout.XYZ:
       tilePathLayout = `/${tile.x}/${tile.y}/${tile.z}`;
       break;
-    case TilesLayout.YXZ:
+    case TileLayout.YXZ:
       tilePathLayout = `/${tile.y}/${tile.x}/${tile.z}`;
       break;
-    case TilesLayout.ZYX:
+    case TileLayout.ZYX:
       tilePathLayout = `/${tile.z}/${tile.y}/${tile.x}`;
       break;
-    case TilesLayout.ZXY:
+    case TileLayout.ZXY:
       tilePathLayout = `/${tile.z}/${tile.x}/${tile.y}`;
       break;
     default:

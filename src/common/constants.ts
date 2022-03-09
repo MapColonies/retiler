@@ -21,6 +21,7 @@ export const MAP_URL = Symbol('MapURL');
 export const S3_CLIENT_CONFIG = Symbol('S3Clientconfig');
 export const S3_BUCKET = Symbol('S3Bucket');
 export const REVERSE_Y = Symbol('ReverseY');
+export const TILE_LAYOUT = Symbol('TileLayout');
 
 export const DEFAULT_TILE_SIZE = 256;
 

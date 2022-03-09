@@ -11,9 +11,10 @@ import {
   REVERSE_Y,
   SERVICES,
   TILES_STORAGE_PROVIDER,
+  TILE_LAYOUT,
 } from '../common/constants';
 import { JobsQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
-import { TilesLayout, tileToLayout as tileToPathLayout } from './tilesPath';
+import { TileLayout, tileToPathLayout } from './tilesPath';
 
 const SCALE_FACTOR = 2;
 
@@ -24,6 +25,7 @@ export class Retiler {
     @inject(QUEUE_NAME) private readonly queueName: string,
     @inject(MAP_URL) private readonly mapURL: string,
     @inject(REVERSE_Y) private readonly reverseY: string,
+    @inject(TILE_LAYOUT) private readonly tileLayout: TileLayout,
     @inject(JOBS_QUEUE_PROVIDER) private readonly jobsQueueProvider: JobsQueueProvider,
     @inject(MAP_PROVIDER) private readonly mapProvider: MapProvider,
     @inject(MAP_SPLITTER_PROVIDER) private readonly mapSplitter: MapSplitterProvider,
@@ -37,7 +39,7 @@ export class Retiler {
     // get a job from the queue (using pg-boss)
     startTime = performance.now();
     const job = await this.jobsQueueProvider.get<Tile>();
-    
+
     if (job === null) {
       this.logger.info(`queue '${this.queueName}' is empty`);
       return false;
@@ -105,7 +107,7 @@ export class Retiler {
           tile.y = (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
         }
 
-        const tilePathLayout = tileToPathLayout(tile, TilesLayout.ZXY, `/${this.queueName}`, undefined, 'png');
+        const tilePathLayout = tileToPathLayout(tile, this.tileLayout, `/${this.queueName}`, undefined, 'png');
 
         // store tiles (with @aws-sdk/clients-s3)
         return this.tilesStorageProvider.set(tilePathLayout, buffers[i]);
