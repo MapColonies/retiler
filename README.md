@@ -53,7 +53,7 @@ this provider should implement the functions bellow
 
 ## Installation & Usage
 
-After retiler is cloned, currently, this [file](./src/containerConfig.ts) must be updated to inject the needed providers. Following this the relevant env variables must be set up to support the selection of the providers.
+After retiler is cloned, currently, this [file](./src/containerConfig.ts) must be updated to inject the needed providers. Then install the relevant npm packages. Finally, add or edit the relevant env variables to support the selection of the providers.
 
 ### Locally
 
