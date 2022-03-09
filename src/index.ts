@@ -41,6 +41,8 @@ void getApp()
     const tiler = container.resolve(Retiler);
     const JobsQueueProvider: JobsQueueProvider = container.resolve(JOBS_QUEUE_PROVIDER);
 
+    logger.info(`processing queue '${queueName}'`);
+
     const startTime = performance.now();
     let counter = 0;
     while (!(await JobsQueueProvider.isEmpty())) {
@@ -81,6 +83,5 @@ void getApp()
       await shutdownHandler.shutdown();
     }
 
-    // TODO: add more exit codes
     process.exit(error.exitCode);
   });
