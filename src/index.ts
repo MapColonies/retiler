@@ -48,7 +48,7 @@ void getApp()
       counter++;
 
       // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (counter % 1000) {
+      if (counter % 1000 === 0) {
         logger.info(`processed ${counter} jobs in queue '${queueName}'`);
       }
     }

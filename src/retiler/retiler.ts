@@ -48,7 +48,7 @@ export class Retiler {
     const { data: tile, id, name } = job;
 
     endTime = performance.now();
-    this.logger.debug(`job '${name}' with unique id '${id}' was fetched from queue ink ${endTime - startTime}ms`);
+    this.logger.debug(`job '${name}' with unique id '${id}' was fetched from queue ink ${Math.round(endTime - startTime)}ms`);
 
     try {
       const metatile = tile.metatile ?? 1;
@@ -90,7 +90,7 @@ export class Retiler {
       // Promise.all keeps the order of the passed Promises, so buffers and tiles vars will have the same order
       const buffers = await Promise.all(promises);
       endTime = performance.now();
-      this.logger.debug(`job '${name}' with unique id '${id}' got a web map and splitted to tiles in ${endTime - startTime}ms`);
+      this.logger.debug(`job '${name}' with unique id '${id}' got a web map and splitted to tiles in ${Math.round(endTime - startTime)}ms`);
 
       const tilesPromises: Promise<void>[] = tiles.map(async (tile, i) => {
         if (
@@ -117,16 +117,16 @@ export class Retiler {
       startTime = performance.now();
       await Promise.all(tilesPromises); // Promise.all keeps the order of the passed Promises
       endTime = performance.now();
-      this.logger.debug(`job '${name}' with unique id '${id}' stored tiles successfully in ${endTime - startTime}ms`);
+      this.logger.debug(`job '${name}' with unique id '${id}' stored tiles successfully in ${Math.round(endTime - startTime)}ms`);
 
       // update the queue that job completed
       await this.jobsQueueProvider.complete(id);
 
       const endTotalTime = performance.now();
       this.logger.debug(
-        `job '${name}' with unique id '${id}' of tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${metatile}) completed successfully in ${
-          endTotalTime - startTotalTime
-        }ms`
+        `job '${name}' with unique id '${id}' of tile (z,x,y,metatile):(${tile.z},${tile.x},${
+          tile.y
+        },${metatile}) completed successfully in ${Math.round(endTotalTime - startTotalTime)}ms`
       );
       return true;
     } catch (err: unknown) {
