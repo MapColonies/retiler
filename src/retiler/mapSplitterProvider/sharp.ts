@@ -1,15 +1,17 @@
-import { Duplex } from 'stream';
+import { Duplex, Readable } from 'stream';
 import { Tile } from '@map-colonies/tile-calc';
 import sharp from 'sharp';
 import { DEFAULT_TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
+import { TileWithBuffer } from '../types';
 
 // see https://sharp.pixelplumbing.com/api-utility for more global sharp properties that can affect performance (concurrency, cache)
 // add implementation to these properties if needed
 export class SharpMapSplitter implements MapSplitterProvider {
-  public generateSplitPipeline(tile: Tile): { promises: Promise<Buffer>[]; tiles: Tile[]; pipeline: Duplex } {
+  public async splitMap(tile: Tile, stream: Readable): Promise<TileWithBuffer[]> {
     const metatile = tile.metatile ?? 1;
     const pipeline = sharp();
+    stream.pipe(pipeline);
     const promises: Promise<Buffer>[] = [];
     const tiles: Tile[] = [];
 
@@ -28,7 +30,8 @@ export class SharpMapSplitter implements MapSplitterProvider {
         tiles.push({ z: tile.z, x: tile.x * metatile + j, y: tile.y * metatile + i, metatile: 1 });
       }
     }
-
-    return { promises, tiles, pipeline };
+    
+    const buffers = await Promise.all(promises);
+    return buffers.map((buffer, index) => ({ ...tiles[index], buffer }));
   }
 }

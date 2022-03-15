@@ -117,17 +117,14 @@ export class Retiler {
 
   private async splitMapStreamToTiles(tile: Required<Tile>, mapStream: Readable): Promise<{ buffers: Buffer[]; tiles: Tile[] }> {
     // returns a pipeline to pipe a stream to and promises that will resolve when the pipeline completes all tile splitting
-    const { promises, tiles, pipeline } = this.mapSplitter.generateSplitPipeline(tile);
+    const tiles = await this.mapSplitter.splitMap(tile, mapStream);
 
     // if using a sync flow use the code bellow
     // const { data: syncData } = await this.mapProvider.getMap(URL);
     // writeFileSync('./output/fssyncimage.png', syncData);
 
-    // pipe the map stream to tile splitting pipeline
-    mapStream.pipe(pipeline);
-
     // Promise.all keeps the order of the passed Promises, so buffers and tiles variables will have the same order
-    return { buffers: await Promise.all(promises), tiles: tiles };
+    return { buffers: tiles.map((tile) => tile.buffer), tiles: tiles.map((tile) => ({ x: tile.x, y: tile.y, z: tile.z, metatile: tile.metatile })) };
   }
 
   private async storeTiles(tiles: Tile[], buffers: Buffer[]): Promise<void> {
