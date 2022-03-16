@@ -70,6 +70,7 @@
       },
       "s3Bucket": "S3_BUCKET",
       "tilePathLayout": {
+        "prefix": "TILE_PATH_PREFIX",
         "reverseY": {
           "__name": "REVERSE_Y",
           "__format": "boolean"

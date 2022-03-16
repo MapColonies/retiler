@@ -20,5 +20,5 @@ export interface MapSplitterProvider {
 }
 
 export interface TilesStorageProvider {
-  set: (key: string, body: Buffer, acl?: ObjectCannedACL | string) => Promise<void>;
+  storeTile: (tile:TileWithBuffer) => Promise<void>;
 }

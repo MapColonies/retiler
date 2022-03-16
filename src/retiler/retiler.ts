@@ -16,6 +16,7 @@ import {
 import { JobsQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
 import { Job } from './jobsQueueProvider/interfaces';
 import { TilePathLayout, tileToPathLayout } from './tilesPath';
+import { TileWithBuffer } from './types';
 
 const SCALE_FACTOR = 2;
 
@@ -55,15 +56,19 @@ export class Retiler {
     try {
       this.logger.debug(`${logJobMessage} working on tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${tile.metatile}`);
 
-      const mapStream = await this.mapProvider.getMapStream(tileToBoundingBox(tile), tile.metatile * DEFAULT_TILE_SIZE, tile.metatile * DEFAULT_TILE_SIZE);
+      const mapStream = await this.mapProvider.getMapStream(
+        tileToBoundingBox(tile),
+        tile.metatile * DEFAULT_TILE_SIZE,
+        tile.metatile * DEFAULT_TILE_SIZE
+      );
 
       this.logger.debug(`${logJobMessage} splitting map to ${tile.metatile}x${tile.metatile} tiles`);
-      const { buffers, tiles } = await this.splitMapStreamToTiles(tile, mapStream);
+      const tiles = await this.mapSplitter.splitMap(tile, mapStream);
 
       this.logger.debug(`${logJobMessage} storing tiles in storage`);
       startTime = performance.now();
 
-      await this.storeTiles(tiles, buffers);
+      await this.storeTiles(tiles);
 
       endTime = performance.now();
       this.logger.debug(`${logJobMessage} stored tiles successfully in ${Math.round(endTime - startTime)}ms`);
@@ -96,20 +101,8 @@ export class Retiler {
     return job;
   }
 
-  private async splitMapStreamToTiles(tile: Required<Tile>, mapStream: Readable): Promise<{ buffers: Buffer[]; tiles: Tile[] }> {
-    // returns a pipeline to pipe a stream to and promises that will resolve when the pipeline completes all tile splitting
-    const tiles = await this.mapSplitter.splitMap(tile, mapStream);
-
-    // if using a sync flow use the code bellow
-    // const { data: syncData } = await this.mapProvider.getMap(URL);
-    // writeFileSync('./output/fssyncimage.png', syncData);
-
-    // Promise.all keeps the order of the passed Promises, so buffers and tiles variables will have the same order
-    return { buffers: tiles.map((tile) => tile.buffer), tiles: tiles.map((tile) => ({ x: tile.x, y: tile.y, z: tile.z, metatile: tile.metatile })) };
-  }
-
-  private async storeTiles(tiles: Tile[], buffers: Buffer[]): Promise<void> {
-    const tilesPromises: Promise<void>[] = tiles.map(async (tile, i) => {
+  private async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
+    const tilesPromises: Promise<void>[] = tiles.map(async (tile) => {
       if (
         tile.x >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesX / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z ||
         tile.y >= (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z
@@ -123,11 +116,9 @@ export class Retiler {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         tile.y = (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
       }
-
-      const tilePathLayout = tileToPathLayout(tile, this.tilePathLayout.tileLayout, `/${this.queueName}`, undefined, 'png');
-
+      
       // store tiles
-      return this.tilesStorageProvider.set(tilePathLayout, buffers[i]);
+      return this.tilesStorageProvider.storeTile(tile);
     });
 
     await Promise.all(tilesPromises); // Promise.all keeps the order of the passed Promises

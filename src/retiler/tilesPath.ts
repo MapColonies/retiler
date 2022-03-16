@@ -1,6 +1,7 @@
 import { Tile } from '@map-colonies/tile-calc';
 
 export interface TilePathLayout {
+  prefix: string;
   tileLayout: TileLayout;
   reverseY: boolean;
 }

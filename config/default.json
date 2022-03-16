@@ -43,6 +43,7 @@
       },
       "s3Bucket": "bucket-name",
       "tilePathLayout": {
+        "prefix": "default",
         "reverseY": true,
         "tileLayout": "ZXY"
       }
