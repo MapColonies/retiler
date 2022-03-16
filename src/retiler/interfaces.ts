@@ -1,9 +1,7 @@
-import { RequestOptions } from 'https';
 import { Readable } from 'stream';
 import { ObjectCannedACL } from '@aws-sdk/client-s3';
-import { Tile } from '@map-colonies/tile-calc';
+import { BoundingBox, Tile } from '@map-colonies/tile-calc';
 import { Job } from './jobsQueueProvider/interfaces';
-import { HttpResponse } from './mapProvider/interfaces';
 import { TileWithBuffer } from './types';
 
 export interface JobsQueueProvider {
@@ -14,8 +12,7 @@ export interface JobsQueueProvider {
 }
 
 export interface MapProvider {
-  getMapStream: (options: string | RequestOptions | URL) => Promise<Readable>;
-  getMap?: (options: string | RequestOptions | URL) => Promise<HttpResponse<Buffer>>;
+  getMapStream: (bbox: BoundingBox, mapWidth: number, mapHeight: number) => Promise<Readable>;
 }
 
 export interface MapSplitterProvider {

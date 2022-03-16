@@ -24,7 +24,6 @@ export class Retiler {
   public constructor(
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
-    @inject(MAP_URL) private readonly mapURL: string,
     @inject(TILE_PATH_LAYOUT) private readonly tilePathLayout: TilePathLayout,
     @inject(JOBS_QUEUE_PROVIDER) private readonly jobsQueueProvider: JobsQueueProvider,
     @inject(MAP_PROVIDER) private readonly mapProvider: MapProvider,
@@ -55,7 +54,8 @@ export class Retiler {
 
     try {
       this.logger.debug(`${logJobMessage} working on tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${tile.metatile}`);
-      const mapStream = await this.generateMapStream(tile);
+
+      const mapStream = await this.mapProvider.getMapStream(tileToBoundingBox(tile), tile.metatile * DEFAULT_TILE_SIZE, tile.metatile * DEFAULT_TILE_SIZE);
 
       this.logger.debug(`${logJobMessage} splitting map to ${tile.metatile}x${tile.metatile} tiles`);
       const { buffers, tiles } = await this.splitMapStreamToTiles(tile, mapStream);
@@ -94,25 +94,6 @@ export class Retiler {
     }
 
     return job;
-  }
-
-  private async generateMapStream(tile: Required<Tile>): Promise<Readable> {
-    // TODO: consider adding a provider that utilizes esri packages
-    // https://esri.github.io/arcgis-rest-js/api/request/withOptions/
-    // https://github.com/Esri/arcgis-rest-js/tree/master/packages/arcgis-rest-types
-    // https://github.com/Esri/arcgis-rest-js/tree/master/packages/arcgis-rest-request
-
-    // convert tile to bounding box
-    const imageSize = tile.metatile * DEFAULT_TILE_SIZE;
-    const bbox = tileToBoundingBox(tile);
-    // TODO: move request params relevant to arcgis-server to the relevant file
-    const bboxRequestParam = `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
-    const imageSizeParam = `${imageSize},${imageSize}`;
-
-    const URL = `${this.mapURL}?bbox=${bboxRequestParam}&bboxSR=&layers=&layerDefs=&size=${imageSizeParam}&imageSR=&historicMoment=&format=png&transparent=true&dpi=&time=&layerTimeOptions=&dynamicLayers=&gdbVersion=&mapScale=&rotation=&datumTransformations=&layerParameterValues=&mapRangeValues=&layerRangeValues=&f=image`;
-
-    // fetch a web map from the url and create a readable map stream
-    return this.mapProvider.getMapStream(URL);
   }
 
   private async splitMapStreamToTiles(tile: Required<Tile>, mapStream: Readable): Promise<{ buffers: Buffer[]; tiles: Tile[] }> {

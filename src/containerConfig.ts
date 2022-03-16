@@ -25,7 +25,7 @@ import { ShutdownHandler } from './common/shutdownHandler';
 import { tracing } from './common/tracing';
 import { PgBossJobsQueue } from './retiler/jobsQueueProvider/pgboss';
 import { createDatabaseOptions, DbConfig, DbOptions } from './retiler/jobsQueueProvider/pgbossFactory';
-import { HttpsMap } from './retiler/mapProvider/https';
+import { ArcgisExportMapProvider } from './retiler/mapProvider/arcgisExport';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { TilePathLayout } from './retiler/tilesPath';
 import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
@@ -64,7 +64,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: QUEUE_NAME, provider: { useValue: config.get<string>('app.queueName') } },
       { token: DB_OPTIONS, provider: { useValue: dbOptions } },
       { token: JOBS_QUEUE_PROVIDER, provider: { useClass: PgBossJobsQueue } },
-      { token: MAP_PROVIDER, provider: { useClass: HttpsMap } },
+      { token: MAP_PROVIDER, provider: { useClass: ArcgisExportMapProvider } },
       { token: MAP_SPLITTER_PROVIDER, provider: { useClass: SharpMapSplitter } },
       { token: TILES_STORAGE_PROVIDER, provider: { useClass: S3TilesStorage } },
     ];

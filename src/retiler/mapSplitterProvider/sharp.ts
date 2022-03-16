@@ -1,4 +1,4 @@
-import { Duplex, Readable } from 'stream';
+import { Readable,  } from 'stream';
 import { Tile } from '@map-colonies/tile-calc';
 import sharp from 'sharp';
 import { DEFAULT_TILE_SIZE } from '../../common/constants';
