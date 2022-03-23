@@ -1,126 +1,81 @@
-# Map Colonies typescript service template
+# Retiler
+
+![badge-alerts-lgtm](https://img.shields.io/lgtm/alerts/github/MapColonies/retiler?style=for-the-badge)
+
+![grade-badge-lgtm](https://img.shields.io/lgtm/grade/javascript/github/MapColonies/retiler?style=for-the-badge)
+
+![snyk](https://img.shields.io/snyk/vulnerabilities/github/MapColonies/retiler?style=for-the-badge)
 
 ----------------------------------
+retiler is a thin service that supposed to run as a [k8s job](https://kubernetes.io/docs/concepts/workloads/controllers/job/). It will retile a web map service and store the output tiles in a storage.
 
-![badge-alerts-lgtm](https://img.shields.io/lgtm/alerts/github/MapColonies/ts-server-boilerplate?style=for-the-badge)
 
-![grade-badge-lgtm](https://img.shields.io/lgtm/grade/javascript/github/MapColonies/ts-server-boilerplate?style=for-the-badge)
+## Introduction
 
-![snyk](https://img.shields.io/snyk/vulnerabilities/github/MapColonies/ts-server-boilerplate?style=for-the-badge)
+retiler is build from four main parts:
+- **jobs queue provider** - a queue of jobs that hold tiles
+- **map provider** - fetches a web map based on the tile (metatile)
+- **map splitter provider** - splits the web map to single tiles e.g. `metatile=1`
+- **tiles storage provider** - stores tiles to a storage
 
-----------------------------------
+## Writing Retiler Providers
 
-This is a basic repo template for building new MapColonies web services in Typescript.
+Implementation details for all providers could be found [here](./src/retiler/interfaces.ts). The sections bellow provide a short overview of the providers used by retiler.
 
-### Template Features:
+### jobs queue provider
 
-- eslint configuration by [@map-colonies/eslint-config](https://github.com/MapColonies/eslint-config)
+this provider should implement the functions bellow
+- `get()` get a job from the queue
+- `isEmpty()` check if the queue is empty
+- `complete()` mark the job as completed
+- `fail()` mark the job as failed
 
-- prettier configuration by [@map-colonies/prettier-config](https://github.com/MapColonies/prettier-config)
+retiler checks when the queue is empty using `isEmpty()` and if so it successfully terminates the k8s job
 
-- jest
+### map provider
 
-- .nvmrc
+this provider should implement the functions bellow
+- `getMapStream()` get a readable stream of the map image payload
 
-- Multi stage producton-ready Dockerfile
+this provider may implement the functions bellow
+- *`getMap()`* get an http response with a buffer of the map image payload
 
-- commitlint
+### map splitter provider
 
-- git hooks
+this provider should implement the functions bellow
+- `generateSplitPipeline()` creates a Duplex stream that will tile the map image
 
-- logging by [@map-colonies/js-logger](https://github.com/MapColonies/js-logger)
+### tiles storage provider
 
-- OpenAPI request validation
+this provider should implement the functions bellow
 
-- config load with [node-config](https://www.npmjs.com/package/node-config)
+- `set()` store the tiles in a storage
 
-- Tracing and metrics by [@map-colonies/telemetry](https://github.com/MapColonies/telemetry)
+## Installation & Usage
 
-- github templates
+After retiler is cloned, currently, this [file](./src/containerConfig.ts) must be updated to inject the needed providers. Then install the relevant npm packages. Finally, add or edit the relevant env variables to support the selection of the providers.
 
-- bug report
+### Locally
 
-- feature request
-
-- pull request
-
-- github actions
-
-- on pull_request
-
-- LGTM
-
-- test
-
-- lint
-
-- snyk
-
-## API
-Checkout the OpenAPI spec [here](/openapi3.yaml)
-
-## Installation
-
-Install deps with npm
+Use locally by cloning from GitHub
 
 ```bash
+git clone https://github.com/MapColonies/retiler.git
+cd retiler
 npm install
-```
-### Install Git Hooks
-```bash
-npx husky install
-```
-
-## Run Locally
-
-Clone the project
-
-```bash
-
-git clone https://link-to-project
-
-```
-
-Go to the project directory
-
-```bash
-
-cd my-project
-
-```
-
-Install dependencies
-
-```bash
-
-npm install
-
-```
-
-Start the server
-
-```bash
-
 npm run start
+```
 
+### k8s
+
+Build an image to run as a k8s job
+
+```docker
+docker build --rm -t retiler:<TAG> .
 ```
 
 ## Running Tests
 
-To run tests, run the following command
-
 ```bash
-
 npm run test
-
-```
-
-To only run unit tests:
-```bash
-npm run test:unit
-```
-
-To only run integration tests:
-```bash
-npm run test:integration
 ```

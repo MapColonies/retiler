@@ -1,10 +1,4 @@
 {
-  "openapiConfig": {
-    "filePath": "./openapi3.yaml",
-    "basePath": "/docs",
-    "rawPath": "/api",
-    "uiPath": "/api"
-  },
   "telemetry": {
     "logger": {
       "level": "info",
@@ -12,16 +6,46 @@
     }
   },
   "server": {
-    "port": "8080",
-    "request": {
-      "payload": {
-        "limit": "1mb"
+    "port": "8080"
+  },
+  "app": {
+    "projectName": "default",
+    "queueName": "QUEUE_NAME",
+    "jobsQueue": {
+      "pg-boss": {
+        "db": {
+          "host": "localhost",
+          "port": 5432,
+          "user": "postgres",
+          "password": "postgres",
+          "schema": "pgboss",
+          "enableSslAuth": false,
+          "sslPaths": {
+            "ca": "",
+            "key": "",
+            "cert": ""
+          },
+          "database": "pgboss"
+        },
+        "maintenance": {
+          "noSupervisor": true
+        }
       }
     },
-    "response": {
-      "compression": {
-        "enabled": true,
-        "options": null
+    "map": {
+      "url": "https://some-domain.com/api/"
+    },
+    "tilesStorage": {
+      "s3ClientConfig": {
+        "endpoint": "http://s3-domain/",
+        "region": "region",
+        "forcePathStyle": true
+      },
+      "s3Bucket": "bucket-name",
+      "tilePathLayout": {
+        "prefix": "default",
+        "reverseY": true,
+        "tileLayout": "ZXY"
       }
     }
   }
