@@ -16,7 +16,6 @@ export class S3TilesStorage implements TilesStorageProvider {
   ) {}
 
   public async storeTile(tile: TileWithBuffer): Promise<void> {
-    console.log(this.bucket);
     const key = tileToPathLayout(tile, this.tilePathLayout.tileLayout, `${this.tilePathLayout.prefix}`, undefined, 'png');
     const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: tile.buffer });
 
