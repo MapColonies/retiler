@@ -18,7 +18,6 @@ export const DB_OPTIONS = Symbol('DbOptions');
 
 export const MAP_URL = Symbol('MapURL');
 
-export const S3_CLIENT_CONFIG = Symbol('S3Clientconfig');
 export const S3_BUCKET = Symbol('S3Bucket');
 export const TILE_PATH_LAYOUT = Symbol('TilePathLayout');
 
