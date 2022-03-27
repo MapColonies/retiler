@@ -57,7 +57,13 @@
       }
     },
     "map": {
-      "url": "MAP_URL"
+      "url": "MAP_URL",
+      "client": {
+        "timeout": {
+          "__name": "MAP_CLIENT_TIMEOUT",
+          "__format": "number"
+        }
+      }
     },
     "tilesStorage": {
       "s3ClientConfig": {

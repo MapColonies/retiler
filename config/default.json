@@ -33,7 +33,10 @@
       }
     },
     "map": {
-      "url": "https://some-domain.com/api/"
+      "url": "https://some-domain.com/api/",
+      "client": {
+        "timeout": 1000
+      }
     },
     "tilesStorage": {
       "s3ClientConfig": {

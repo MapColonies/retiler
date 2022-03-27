@@ -1,6 +1,7 @@
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { logMethod } from '@map-colonies/telemetry';
+import axios, { AxiosRequestConfig } from 'axios'
 import { trace } from '@opentelemetry/api';
 import config from 'config';
 import { ConstructorOptions } from 'pg-boss';
@@ -54,6 +55,9 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const s3Client = new S3Client(s3Config);
     shutdownHandler.addFunction(s3Client.destroy.bind(s3Client));
 
+    const axiosClientConfig = config.get<AxiosRequestConfig>('app.map.client');
+    const axiosClient = axios.create(axiosClientConfig);
+
     const dependencies: InjectionObject<unknown>[] = [
       { token: ShutdownHandler, provider: { useValue: shutdownHandler } },
       { token: SERVICES.CONFIG, provider: { useValue: config } },
@@ -61,6 +65,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
       { token: SERVICES.S3, provider: { useValue: s3Client } },
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
+      { token: SERVICES.HTTP_CLIENT, provider: { useValue: axiosClient } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
       { token: TILE_PATH_LAYOUT, provider: { useValue: config.get<TilePathLayout>('app.tilesStorage.tilePathLayout') } },
