@@ -18,7 +18,6 @@ export const DB_OPTIONS = Symbol('DbOptions');
 
 export const MAP_URL = Symbol('MapURL');
 
-export const S3_CLIENT_CONFIG = Symbol('S3Clientconfig');
 export const S3_BUCKET = Symbol('S3Bucket');
 export const TILE_PATH_LAYOUT = Symbol('TilePathLayout');
 
@@ -30,6 +29,7 @@ export const SERVICES: Record<string, symbol> = {
   CONFIG: Symbol('Config'),
   TRACER: Symbol('Tracer'),
   METER: Symbol('Meter'),
+  S3: Symbol('S3')
 };
 
 export const ExitCodes: Record<string, number> = {

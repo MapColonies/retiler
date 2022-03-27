@@ -1,4 +1,4 @@
-import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { logMethod } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
@@ -14,7 +14,6 @@ import {
   PROJECT_NAME_SYMBOL,
   QUEUE_NAME,
   S3_BUCKET,
-  S3_CLIENT_CONFIG,
   SERVICES,
   SERVICE_NAME,
   TILES_STORAGE_PROVIDER,
@@ -51,14 +50,18 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const tracer = trace.getTracer(SERVICE_NAME);
     shutdownHandler.addFunction(tracing.stop.bind(tracing));
 
+    const s3Config = config.get<S3ClientConfig>('app.tilesStorage.s3ClientConfig');
+    const s3Client = new S3Client(s3Config);
+    shutdownHandler.addFunction(s3Client.destroy.bind(s3Client));
+
     const dependencies: InjectionObject<unknown>[] = [
       { token: ShutdownHandler, provider: { useValue: shutdownHandler } },
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
+      { token: SERVICES.S3, provider: { useValue: s3Client } },
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
-      { token: S3_CLIENT_CONFIG, provider: { useValue: { ...config.get<S3ClientConfig>('app.tilesStorage.s3ClientConfig') } } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
       { token: TILE_PATH_LAYOUT, provider: { useValue: config.get<TilePathLayout>('app.tilesStorage.tilePathLayout') } },
       { token: QUEUE_NAME, provider: { useValue: config.get<string>('app.queueName') } },
