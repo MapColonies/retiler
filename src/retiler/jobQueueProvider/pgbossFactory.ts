@@ -1,8 +1,8 @@
 import { readFile } from 'fs/promises';
-import { ConstructorOptions, DatabaseOptions } from 'pg-boss';
+import PgBoss, { ConstructorOptions, DatabaseOptions } from 'pg-boss';
 import { SERVICE_NAME } from '../../common/constants';
 
-export const createDatabaseOptions = async (dbConfig: DbOptions): Promise<ConstructorOptions> => {
+const createDatabaseOptions = async (dbConfig: PgBossConfig): Promise<DatabaseOptions> => {
   const { enableSslAuth, sslPaths, ...databaseOptions } = dbConfig;
   databaseOptions.application_name = SERVICE_NAME;
   if (enableSslAuth) {
@@ -13,10 +13,13 @@ export const createDatabaseOptions = async (dbConfig: DbOptions): Promise<Constr
   return databaseOptions;
 };
 
-export type DbConfig = {
+export type PgBossConfig = {
   enableSslAuth: boolean;
   sslPaths: { ca: string; cert: string; key: string };
   certSecretName: string;
-} & DatabaseOptions;
+} & ConstructorOptions;
 
-export type DbOptions = DbConfig & ConstructorOptions;
+export const pgBossFactory = async (bossConfig: PgBossConfig): Promise<PgBoss> => {
+  const databaseOptions = await createDatabaseOptions(bossConfig);
+  return new PgBoss(databaseOptions);
+};
