@@ -1,4 +1,4 @@
-import { DependencyContainer, Lifecycle } from 'tsyringe/dist/typings/types';
+import { DependencyContainer, Lifecycle } from 'tsyringe';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { logMethod } from '@map-colonies/telemetry';
