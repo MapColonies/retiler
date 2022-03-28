@@ -6,10 +6,10 @@ import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
 import { get } from 'config';
 import { DependencyContainer } from 'tsyringe';
-import { DEFAULT_SERVER_PORT, JOBS_QUEUE_PROVIDER, QUEUE_NAME, SERVICES } from './common/constants';
+import { DEFAULT_SERVER_PORT, JOB_QUEUE_PROVIDER, QUEUE_NAME, SERVICES } from './common/constants';
 import { ErrorWithExitCode } from './common/errors';
 import { ShutdownHandler } from './common/shutdownHandler';
-import { JobsQueueProvider } from './retiler/interfaces';
+import { JobQueueProvider } from './retiler/interfaces';
 import { Retiler } from './retiler/retiler';
 import { registerExternalValues } from './containerConfig';
 
@@ -31,9 +31,7 @@ void registerExternalValues()
     const shutdownHandler = container.resolve(ShutdownHandler);
 
     const server = http.createServer((request, response) => {
-      response.end(
-        `Hello World!\n\nThis is the Retiler server.\n\nThe server is running at http://localhost:${port}`
-      );
+      response.end(`Hello World!\n\nThis is the Retiler server.\n\nThe server is running at http://localhost:${port}`);
     });
 
     createTerminus(server, {
@@ -49,7 +47,7 @@ void registerExternalValues()
     const queueName = container.resolve<string>(QUEUE_NAME);
 
     const tiler = container.resolve(Retiler);
-    const JobsQueueProvider: JobsQueueProvider = container.resolve(JOBS_QUEUE_PROVIDER);
+    const JobsQueueProvider: JobQueueProvider = container.resolve(JOB_QUEUE_PROVIDER);
 
     logger.info(`processing queue '${queueName}'`);
 
