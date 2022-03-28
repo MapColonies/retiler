@@ -1,12 +1,10 @@
 import { Readable } from 'stream';
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import { AxiosError, AxiosInstance } from 'axios';
 import jsLogger from '@map-colonies/js-logger';
 import { streamToString } from '../../../src/common/utils';
 import { ArcgisExportMapProvider } from '../../../src/retiler/mapProvider/arcgisExport';
 
 jest.mock('axios');
-
-const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('arcgisExport', () => {
   describe('#getMapStream', () => {
@@ -15,15 +13,14 @@ describe('arcgisExport', () => {
 
     beforeEach(function () {
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
-      mockedAxios.create.mockReturnValue(mockedClient);
-      arcgisMap = new ArcgisExportMapProvider(jsLogger({ enabled: false }), '');
+      arcgisMap = new ArcgisExportMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com');
     });
 
     afterEach(function () {
       jest.clearAllMocks();
     });
 
-    it('should return a readable stream if the request was ok', async function () {
+    it('should resolve into a readable stream if the request has completed', async function () {
       const response = { data: Readable.from('test') };
       mockedClient.get.mockResolvedValue(response);
 
@@ -33,8 +30,8 @@ describe('arcgisExport', () => {
       expect(await streamToString(stream)).toBe('test');
     });
 
-    it('should throw an error if the request failed', async function () {
-      const error = new Error('test') as AxiosError;
+    it('should throw an error if the request has failed', async function () {
+      const error = new Error('some error') as AxiosError;
       error.toJSON = jest.fn();
       mockedClient.get.mockRejectedValue(error);
 

@@ -30,6 +30,7 @@ export const SERVICES: Record<string, symbol> = {
   TRACER: Symbol('Tracer'),
   METER: Symbol('Meter'),
   S3: Symbol('S3'),
+  HTTP_CLIENT: Symbol('HttpClient'),
 };
 
 export const ExitCodes: Record<string, number> = {
