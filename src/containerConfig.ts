@@ -1,7 +1,7 @@
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { logMethod } from '@map-colonies/telemetry';
-import axios, { AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
 import { ConstructorOptions } from 'pg-boss';
@@ -55,8 +55,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const s3Client = new S3Client(s3Config);
     shutdownHandler.addFunction(s3Client.destroy.bind(s3Client));
 
-    const axiosClientConfig = config.get<AxiosRequestConfig>('app.map.client');
-    const axiosClient = axios.create(axiosClientConfig);
+    const mapClientTimeout = config.get<number>('app.map.client.timeoutMs');
+    const axiosClient = axios.create({ timeout: mapClientTimeout });
 
     const dependencies: InjectionObject<unknown>[] = [
       { token: ShutdownHandler, provider: { useValue: shutdownHandler } },
