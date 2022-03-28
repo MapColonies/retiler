@@ -1,13 +1,12 @@
-import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
+import { DependencyContainer, Lifecycle } from 'tsyringe';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
+import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { logMethod } from '@map-colonies/telemetry';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
-import { ConstructorOptions } from 'pg-boss';
-import { DependencyContainer } from 'tsyringe/dist/typings/types';
+import PgBoss from 'pg-boss';
 import {
-  DB_OPTIONS,
-  JOBS_QUEUE_PROVIDER,
+  JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
   MAP_SPLITTER_PROVIDER,
   MAP_URL,
@@ -22,8 +21,9 @@ import {
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { tracing } from './common/tracing';
-import { PgBossJobsQueue } from './retiler/jobsQueueProvider/pgboss';
-import { createDatabaseOptions, DbConfig, DbOptions } from './retiler/jobsQueueProvider/pgbossFactory';
+import { JobQueueProvider } from './retiler/interfaces';
+import { PgBossJobQueueProvider } from './retiler/jobQueueProvider/pgBossJobQueue';
+import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFactory';
 import { ArcgisExportMapProvider } from './retiler/mapProvider/arcgisExport';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { TilePathLayout } from './retiler/tilesPath';
@@ -41,10 +41,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     // @ts-expect-error the signature is wrong
     const logger = jsLogger({ ...loggerConfig, prettyPrint: loggerConfig.prettyPrint, hooks: { logMethod } });
 
-    const dbOptions: ConstructorOptions = await createDatabaseOptions({
-      ...config.get<DbConfig>('app.jobsQueue.pg-boss.db'),
-      ...config.get<DbOptions>('app.jobsQueue.pg-boss.maintenance'),
-    });
+    const pgBossConfig = config.get<PgBossConfig>('app.jobQueue.pgBoss');
+    const pgBoss = await pgBossFactory(pgBossConfig);
 
     tracing.start();
     const tracer = trace.getTracer(SERVICE_NAME);
@@ -60,19 +58,29 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
       { token: SERVICES.S3, provider: { useValue: s3Client } },
+      { token: PgBoss, provider: { useValue: pgBoss } },
+      { token: QUEUE_NAME, provider: { useValue: config.get<string>('app.queueName') } },
+      {
+        token: JOB_QUEUE_PROVIDER,
+        provider: { useClass: PgBossJobQueueProvider },
+        options: { lifecycle: Lifecycle.Singleton },
+        postInjectionHook: async (deps: DependencyContainer): Promise<void> => {
+          const provider = deps.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
+          shutdownHandler.addFunction(provider.stopQueue.bind(provider));
+          await provider.startQueue();
+        },
+      },
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
       { token: TILE_PATH_LAYOUT, provider: { useValue: config.get<TilePathLayout>('app.tilesStorage.tilePathLayout') } },
-      { token: QUEUE_NAME, provider: { useValue: config.get<string>('app.queueName') } },
-      { token: DB_OPTIONS, provider: { useValue: dbOptions } },
-      { token: JOBS_QUEUE_PROVIDER, provider: { useClass: PgBossJobsQueue } },
       { token: MAP_PROVIDER, provider: { useClass: ArcgisExportMapProvider } },
       { token: MAP_SPLITTER_PROVIDER, provider: { useClass: SharpMapSplitter } },
       { token: TILES_STORAGE_PROVIDER, provider: { useClass: S3TilesStorage } },
     ];
 
-    return registerDependencies(dependencies, options?.override, options?.useChild);
+    const container = await registerDependencies(dependencies, options?.override, options?.useChild);
+    return container;
   } catch (error) {
     await shutdownHandler.shutdown();
     throw error;

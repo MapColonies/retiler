@@ -1,14 +1,15 @@
 import { Readable } from 'stream';
-import { ObjectCannedACL } from '@aws-sdk/client-s3';
 import { BoundingBox, Tile } from '@map-colonies/tile-calc';
-import { Job } from './jobsQueueProvider/interfaces';
+import { Job } from './jobQueueProvider/interfaces';
 import { TileWithBuffer } from './types';
 
-export interface JobsQueueProvider {
+export interface JobQueueProvider {
   get: <T>() => Promise<Job<T> | null>;
   isEmpty: () => Promise<boolean>;
-  complete: (id: string) => Promise<void>;
-  fail: ((id: string) => Promise<void>) & ((id: string, data: object) => Promise<void>);
+  complete: (id: string, data?: object) => Promise<void>;
+  fail: (id: string, data?: object) => Promise<void>;
+  startQueue: () => Promise<void>;
+  stopQueue: () => Promise<void>;
 }
 
 export interface MapProvider {
@@ -20,5 +21,5 @@ export interface MapSplitterProvider {
 }
 
 export interface TilesStorageProvider {
-  storeTile: (tile:TileWithBuffer) => Promise<void>;
+  storeTile: (tile: TileWithBuffer) => Promise<void>;
 }

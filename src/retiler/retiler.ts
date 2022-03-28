@@ -4,7 +4,7 @@ import { Tile, TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/til
 import { inject, injectable } from 'tsyringe';
 import {
   DEFAULT_TILE_SIZE,
-  JOBS_QUEUE_PROVIDER,
+  JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
   MAP_SPLITTER_PROVIDER,
   MAP_URL,
@@ -13,8 +13,8 @@ import {
   TILES_STORAGE_PROVIDER,
   TILE_PATH_LAYOUT,
 } from '../common/constants';
-import { JobsQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
-import { Job } from './jobsQueueProvider/interfaces';
+import { JobQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
+import { Job } from './jobQueueProvider/interfaces';
 import { TilePathLayout, tileToPathLayout } from './tilesPath';
 import { TileWithBuffer } from './types';
 
@@ -26,7 +26,7 @@ export class Retiler {
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
     @inject(TILE_PATH_LAYOUT) private readonly tilePathLayout: TilePathLayout,
-    @inject(JOBS_QUEUE_PROVIDER) private readonly jobsQueueProvider: JobsQueueProvider,
+    @inject(JOB_QUEUE_PROVIDER) private readonly jobsQueueProvider: JobQueueProvider,
     @inject(MAP_PROVIDER) private readonly mapProvider: MapProvider,
     @inject(MAP_SPLITTER_PROVIDER) private readonly mapSplitter: MapSplitterProvider,
     @inject(TILES_STORAGE_PROVIDER) private readonly tilesStorageProvider: TilesStorageProvider
@@ -116,7 +116,6 @@ export class Retiler {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         tile.y = (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
       }
-      
       // store tiles
       return this.tilesStorageProvider.storeTile(tile);
     });
