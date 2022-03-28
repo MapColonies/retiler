@@ -35,7 +35,7 @@
     "map": {
       "url": "https://some-domain.com/api/",
       "client": {
-        "timeout": 1000
+        "timeout": 60000
       }
     },
     "tilesStorage": {

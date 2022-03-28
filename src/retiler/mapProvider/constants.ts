@@ -1,4 +1,4 @@
-export const GET_MAP_PARAMS = {
+export const ARCGIS_MAP_PARAMS = {
     bboxSR: '',
     layers: '',
     layerDefs: '',

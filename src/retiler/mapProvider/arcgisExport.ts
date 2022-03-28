@@ -5,7 +5,7 @@ import { Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
 import { MAP_URL, SERVICES } from '../../common/constants';
 import { MapProvider } from '../interfaces';
-import { GET_MAP_PARAMS } from './constants';
+import { ARCGIS_MAP_PARAMS } from './constants';
 
 @injectable()
 export class ArcgisExportMapProvider implements MapProvider {
@@ -15,7 +15,7 @@ export class ArcgisExportMapProvider implements MapProvider {
 
   public async getMapStream(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Readable> {
     const requestParams = {
-      ...GET_MAP_PARAMS,
+      ...ARCGIS_MAP_PARAMS,
       bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
       size: `${mapWidth},${mapHeight}`,
     };
