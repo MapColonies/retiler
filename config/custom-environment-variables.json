@@ -59,8 +59,8 @@
     "map": {
       "url": "MAP_URL",
       "client": {
-        "timeout": {
-          "__name": "MAP_CLIENT_TIMEOUT",
+        "timeoutMs": {
+          "__name": "MAP_CLIENT_TIMEOUT_MS",
           "__format": "number"
         }
       }
