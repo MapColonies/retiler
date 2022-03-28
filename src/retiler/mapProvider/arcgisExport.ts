@@ -9,9 +9,11 @@ import { ARCGIS_MAP_PARAMS } from './constants';
 
 @injectable()
 export class ArcgisExportMapProvider implements MapProvider {
-  public constructor(@inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
+  public constructor(
+    @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(MAP_URL) private readonly mapUrl: string) { }
+    @inject(MAP_URL) private readonly mapUrl: string
+  ) {}
 
   public async getMapStream(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Readable> {
     const requestParams = {

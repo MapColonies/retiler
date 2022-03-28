@@ -1,7 +1,7 @@
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { logMethod } from '@map-colonies/telemetry';
-import axios, { AxiosRequestConfig } from 'axios'
+import axios, { AxiosRequestConfig } from 'axios';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
 import { ConstructorOptions } from 'pg-boss';
