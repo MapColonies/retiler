@@ -10,7 +10,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public constructor(
     private readonly pgBoss: PgBoss,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(QUEUE_NAME) private readonly queueName: string,
+    @inject(QUEUE_NAME) private readonly queueName: string
   ) {}
 
   public async complete(id: string, data?: object): Promise<void> {

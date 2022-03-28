@@ -21,5 +21,5 @@ export interface MapSplitterProvider {
 }
 
 export interface TilesStorageProvider {
-  storeTile: (tile:TileWithBuffer) => Promise<void>;
+  storeTile: (tile: TileWithBuffer) => Promise<void>;
 }

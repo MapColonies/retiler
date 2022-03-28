@@ -79,7 +79,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: TILES_STORAGE_PROVIDER, provider: { useClass: S3TilesStorage } },
     ];
 
-    const container =  await registerDependencies(dependencies, options?.override, options?.useChild);
+    const container = await registerDependencies(dependencies, options?.override, options?.useChild);
     return container;
   } catch (error) {
     await shutdownHandler.shutdown();

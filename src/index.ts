@@ -31,9 +31,7 @@ void registerExternalValues()
     const shutdownHandler = container.resolve(ShutdownHandler);
 
     const server = http.createServer((request, response) => {
-      response.end(
-        `Hello World!\n\nThis is the Retiler server.\n\nThe server is running at http://localhost:${port}`
-      );
+      response.end(`Hello World!\n\nThis is the Retiler server.\n\nThe server is running at http://localhost:${port}`);
     });
 
     createTerminus(server, {
