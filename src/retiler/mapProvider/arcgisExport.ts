@@ -15,7 +15,7 @@ export class ArcgisExportMapProvider implements MapProvider {
     @inject(MAP_URL) private readonly mapUrl: string
   ) {}
 
-  public async getMapBuffer(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Buffer> {
+  public async getMap(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Buffer> {
     const requestParams = {
       ...ARCGIS_MAP_PARAMS,
       bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,

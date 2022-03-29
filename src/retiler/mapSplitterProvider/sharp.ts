@@ -3,16 +3,13 @@ import sharp from 'sharp';
 import { TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
-import { bufferToStream } from '../../common/utils';
 
 export class SharpMapSplitter implements MapSplitterProvider {
   public async splitMap(tile: Tile, buffer: Buffer): Promise<TileWithBuffer[]> {
-    const stream = bufferToStream(buffer);
-    const pipeline = sharp();
-    stream.pipe(pipeline);
     const promises: Promise<Buffer>[] = [];
     const tiles: Tile[] = [];
 
+    const pipeline = sharp(buffer);
     const splitsPerAxis = tile.metatile ?? 1;
     pipeline.setMaxListeners(splitsPerAxis * splitsPerAxis + 1 + 1);
 

@@ -12,7 +12,7 @@ export interface JobQueueProvider {
 }
 
 export interface MapProvider {
-  getMapBuffer: (bbox: BoundingBox, mapWidth: number, mapHeight: number) => Promise<Buffer>;
+  getMap: (bbox: BoundingBox, mapWidth: number, mapHeight: number) => Promise<Buffer>;
 }
 
 export interface MapSplitterProvider {

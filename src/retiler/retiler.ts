@@ -54,7 +54,7 @@ export class Retiler {
     try {
       this.logger.debug(`${logJobMessage} working on tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${tile.metatile}`);
 
-      const mapStream = await this.mapProvider.getMapBuffer(tileToBoundingBox(tile), tile.metatile * TILE_SIZE, tile.metatile * TILE_SIZE);
+      const mapStream = await this.mapProvider.getMap(tileToBoundingBox(tile), tile.metatile * TILE_SIZE, tile.metatile * TILE_SIZE);
 
       this.logger.debug(`${logJobMessage} splitting map to ${tile.metatile}x${tile.metatile} tiles`);
       const tiles = await this.mapSplitter.splitMap(tile, mapStream);
