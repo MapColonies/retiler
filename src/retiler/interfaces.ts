@@ -1,4 +1,3 @@
-import { Readable } from 'stream';
 import { BoundingBox, Tile } from '@map-colonies/tile-calc';
 import { Job } from './jobQueueProvider/interfaces';
 import { TileWithBuffer } from './types';
@@ -13,11 +12,11 @@ export interface JobQueueProvider {
 }
 
 export interface MapProvider {
-  getMapStream: (bbox: BoundingBox, mapWidth: number, mapHeight: number) => Promise<Readable>;
+  getMapBuffer: (bbox: BoundingBox, mapWidth: number, mapHeight: number) => Promise<Buffer>;
 }
 
 export interface MapSplitterProvider {
-  splitMap: (tile: Tile, stream: Readable) => Promise<TileWithBuffer[]>;
+  splitMap: (tile: Tile, buffer: Buffer) => Promise<TileWithBuffer[]>;
 }
 
 export interface TilesStorageProvider {
