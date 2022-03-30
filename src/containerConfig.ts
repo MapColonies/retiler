@@ -17,7 +17,7 @@ import {
   SERVICES,
   SERVICE_NAME,
   TILES_STORAGE_PROVIDER,
-  TILE_PATH_LAYOUT,
+  TILES_STORAGE_LAYOUT,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -27,8 +27,8 @@ import { PgBossJobQueueProvider } from './retiler/jobQueueProvider/pgBossJobQueu
 import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFactory';
 import { ArcgisExportMapProvider } from './retiler/mapProvider/arcgisExport';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
-import { TilePathLayout } from './retiler/tilesPath';
 import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
+import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -78,7 +78,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.HTTP_CLIENT, provider: { useValue: axiosClient } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
-      { token: TILE_PATH_LAYOUT, provider: { useValue: config.get<TilePathLayout>('app.tilesStorage.tilePathLayout') } },
+      { token: TILES_STORAGE_LAYOUT, provider: { useValue: config.get<TileStoragLayout>('app.tilesStorage.layout') } },
       { token: MAP_PROVIDER, provider: { useClass: ArcgisExportMapProvider } },
       { token: MAP_SPLITTER_PROVIDER, provider: { useClass: SharpMapSplitter } },
       { token: TILES_STORAGE_PROVIDER, provider: { useClass: S3TilesStorage } },

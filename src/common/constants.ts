@@ -17,7 +17,7 @@ export const QUEUE_NAME = Symbol('QueueName');
 export const MAP_URL = Symbol('MapURL');
 
 export const S3_BUCKET = Symbol('S3Bucket');
-export const TILE_PATH_LAYOUT = Symbol('TilePathLayout');
+export const TILES_STORAGE_LAYOUT = Symbol('TilesStorageLayout');
 
 export const TILE_SIZE = 256;
 
