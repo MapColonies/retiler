@@ -14,14 +14,12 @@ export const TILES_STORAGE_PROVIDER = Symbol('TilesStorageProvider');
 
 export const QUEUE_NAME = Symbol('QueueName');
 
-export const DB_OPTIONS = Symbol('DbOptions');
-
 export const MAP_URL = Symbol('MapURL');
 
 export const S3_BUCKET = Symbol('S3Bucket');
 export const TILE_PATH_LAYOUT = Symbol('TilePathLayout');
 
-export const DEFAULT_TILE_SIZE = 256;
+export const TILE_SIZE = 256;
 
 /* eslint-disable @typescript-eslint/naming-convention */
 export const SERVICES: Record<string, symbol> = {
@@ -40,4 +38,3 @@ export const ExitCodes: Record<string, number> = {
   REMOTE_SERVICE_RESPONSE_ERROR: 103,
   REMOTE_SERVICE_UNAVAILABLE: 104,
 };
-/* eslint-enable @typescript-eslint/naming-convention */

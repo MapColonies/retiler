@@ -1,13 +1,11 @@
-import { Readable } from 'stream';
 import { Logger } from '@map-colonies/js-logger';
 import { Tile, TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { inject, injectable } from 'tsyringe';
 import {
-  DEFAULT_TILE_SIZE,
+  TILE_SIZE,
   JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
   MAP_SPLITTER_PROVIDER,
-  MAP_URL,
   QUEUE_NAME,
   SERVICES,
   TILES_STORAGE_PROVIDER,
@@ -15,7 +13,7 @@ import {
 } from '../common/constants';
 import { JobQueueProvider, MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
 import { Job } from './jobQueueProvider/interfaces';
-import { TilePathLayout, tileToPathLayout } from './tilesPath';
+import { TilePathLayout } from './tilesPath';
 import { TileWithBuffer } from './types';
 
 const SCALE_FACTOR = 2;
@@ -56,11 +54,7 @@ export class Retiler {
     try {
       this.logger.debug(`${logJobMessage} working on tile (z,x,y,metatile):(${tile.z},${tile.x},${tile.y},${tile.metatile}`);
 
-      const mapStream = await this.mapProvider.getMapStream(
-        tileToBoundingBox(tile),
-        tile.metatile * DEFAULT_TILE_SIZE,
-        tile.metatile * DEFAULT_TILE_SIZE
-      );
+      const mapStream = await this.mapProvider.getMap(tileToBoundingBox(tile), tile.metatile * TILE_SIZE, tile.metatile * TILE_SIZE);
 
       this.logger.debug(`${logJobMessage} splitting map to ${tile.metatile}x${tile.metatile} tiles`);
       const tiles = await this.mapSplitter.splitMap(tile, mapStream);

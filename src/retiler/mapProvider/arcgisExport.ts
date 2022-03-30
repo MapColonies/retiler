@@ -15,7 +15,7 @@ export class ArcgisExportMapProvider implements MapProvider {
     @inject(MAP_URL) private readonly mapUrl: string
   ) {}
 
-  public async getMapStream(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Readable> {
+  public async getMap(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Buffer> {
     const requestParams = {
       ...ARCGIS_MAP_PARAMS,
       bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
@@ -23,7 +23,7 @@ export class ArcgisExportMapProvider implements MapProvider {
     };
 
     try {
-      const response = await this.axiosClient.get<Readable>(this.mapUrl, { responseType: 'stream', params: requestParams });
+      const response = await this.axiosClient.get<Buffer>(this.mapUrl, { responseType: 'arraybuffer', params: requestParams });
       return response.data;
     } catch (error) {
       const axiosError = error as AxiosError<Readable>;
