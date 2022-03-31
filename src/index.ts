@@ -10,7 +10,7 @@ import { DEFAULT_SERVER_PORT, JOB_QUEUE_PROVIDER, QUEUE_NAME, SERVICES } from '.
 import { ErrorWithExitCode } from './common/errors';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { JobQueueProvider } from './retiler/interfaces';
-import { Retiler } from './retiler/retiler';
+import { TileProcessor } from './retiler/tileProcessor';
 import { registerExternalValues } from './containerConfig';
 
 interface IServerConfig {
@@ -46,7 +46,7 @@ void registerExternalValues()
 
     const queueName = container.resolve<string>(QUEUE_NAME);
 
-    const tiler = container.resolve(Retiler);
+    const processor = container.resolve(TileProcessor);
     const JobsQueueProvider: JobQueueProvider = container.resolve(JOB_QUEUE_PROVIDER);
 
     logger.info(`processing queue '${queueName}'`);
@@ -54,7 +54,7 @@ void registerExternalValues()
     const startTime = performance.now();
     let counter = 0;
     while (!(await JobsQueueProvider.isEmpty())) {
-      await tiler.proccessRequest();
+      await processor.proccessRequest();
       counter++;
       // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       if (counter % 1000 === 0) {
