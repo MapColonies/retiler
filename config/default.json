@@ -47,7 +47,7 @@
       "s3Bucket": "bucket-name",
       "layout": {
         "format": "prefix/{z}/{x}/{y}.png",
-        "shouldReverseY": true
+        "shouldFlipY": true
       }
     }
   }

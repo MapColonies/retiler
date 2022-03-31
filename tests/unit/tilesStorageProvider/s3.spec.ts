@@ -11,7 +11,7 @@ describe('S3TilesStorage', () => {
 
     beforeEach(function () {
       mockedS3Client = new S3Client({}) as jest.Mocked<S3Client>;
-      storage = new S3TilesStorage(mockedS3Client, 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldReverseY: true });
+      storage = new S3TilesStorage(mockedS3Client, 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldFlipY: true });
     });
     afterEach(function () {
       jest.clearAllMocks();

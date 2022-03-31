@@ -77,8 +77,8 @@
       "s3Bucket": "S3_BUCKET",
       "layout": {
         "format": "TILES_STORAGE_LAYOUT_FORMAT",
-        "shouldReverseY": {
-          "__name": "TILES_STORAGE_LAYOUT_SHOULD_REVERSE_Y",
+        "shouldFlipY": {
+          "__name": "TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y",
           "__format": "boolean"
         }
       }

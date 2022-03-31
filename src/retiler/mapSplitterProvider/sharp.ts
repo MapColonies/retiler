@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
-import { isTileOutOfBounds } from '../util';
+import { isTileInBounds } from '../util';
 
 export class SharpMapSplitter implements MapSplitterProvider {
   public async splitMap(tile: Tile, buffer: Buffer): Promise<TileWithBuffer[]> {
@@ -16,9 +16,9 @@ export class SharpMapSplitter implements MapSplitterProvider {
 
     for (let row = 0; row < splitsPerAxis; row++) {
       for (let column = 0; column < splitsPerAxis; column++) {
-        const splittedTile = { z: tile.z, x: tile.x * splitsPerAxis + column, y: tile.y * splitsPerAxis + row, metatile: 1 };
+        const subTile = { z: tile.z, x: tile.x * splitsPerAxis + column, y: tile.y * splitsPerAxis + row, metatile: 1 };
 
-        if (!isTileOutOfBounds(splittedTile)) {
+        if (isTileInBounds(subTile)) {
           promises.push(
             pipeline
               .clone()
@@ -26,7 +26,7 @@ export class SharpMapSplitter implements MapSplitterProvider {
               .toBuffer({ resolveWithObject: false })
           );
 
-          tiles.push(splittedTile);
+          tiles.push(subTile);
         }
       }
     }

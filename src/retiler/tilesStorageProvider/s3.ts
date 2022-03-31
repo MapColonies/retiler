@@ -7,7 +7,7 @@ import { S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../common/constant
 import { S3Error } from '../../common/errors';
 import { TilesStorageProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
-import { getReversedY } from '../util';
+import { getFlippedY } from '../util';
 import { TileStoragLayout } from './interfaces';
 
 @injectable()
@@ -31,8 +31,8 @@ export class S3TilesStorage implements TilesStorageProvider {
   }
 
   private determineKey(tile: Tile): string {
-    if (this.storageLayout.shouldReverseY) {
-      tile.y = getReversedY(tile);
+    if (this.storageLayout.shouldFlipY) {
+      tile.y = getFlippedY(tile);
     }
     const key = Format(this.storageLayout.format, tile);
     return key;
