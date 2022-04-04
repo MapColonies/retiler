@@ -15,7 +15,7 @@ describe('SharpMapSplitter', () => {
 
     it('should split 2048x2048 image into 64 tiles on zoom levels larger or equal to 3', async function () {
       const metatileValue = 8;
-      const zoom = faker.datatype.number({ min: 3, max: 22 });
+      const zoom = faker.datatype.number({ min: 3, max: 20 });
       const buffer = await readFile('tests/2048x2048.png');
 
       const tilesWithBuffers = await splitter.splitMap({ z: zoom, x: 0, y: 0, metatile: metatileValue }, buffer);
