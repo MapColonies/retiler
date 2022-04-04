@@ -75,13 +75,12 @@
         }
       },
       "s3Bucket": "S3_BUCKET",
-      "tilePathLayout": {
-        "prefix": "TILE_PATH_PREFIX",
-        "reverseY": {
-          "__name": "REVERSE_Y",
+      "layout": {
+        "format": "TILES_STORAGE_LAYOUT_FORMAT",
+        "shouldFlipY": {
+          "__name": "TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y",
           "__format": "boolean"
-        },
-        "tileLayout": "TILE_LAYOUT"
+        }
       }
     }
   }

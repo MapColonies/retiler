@@ -1,6 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { S3Error } from '../../../src/common/errors';
-import { TileLayout } from '../../../src/retiler/tilesPath';
 import { S3TilesStorage } from '../../../src/retiler/tilesStorageProvider/s3';
 
 jest.mock('@aws-sdk/client-s3');
@@ -12,11 +11,7 @@ describe('S3TilesStorage', () => {
 
     beforeEach(function () {
       mockedS3Client = new S3Client({}) as jest.Mocked<S3Client>;
-      storage = new S3TilesStorage(
-        mockedS3Client,
-        'test-bucket',
-        { prefix: 'test', tileLayout: TileLayout.ZXY, reverseY: false },
-      );
+      storage = new S3TilesStorage(mockedS3Client, 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldFlipY: true });
     });
     afterEach(function () {
       jest.clearAllMocks();
