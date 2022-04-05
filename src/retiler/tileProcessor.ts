@@ -73,7 +73,7 @@ export class TileProcessor {
 
       await this.jobQueueProvider.fail(job.id, error);
 
-      return { successful: false, jobCompleted: false }
+      return { successful: false, jobCompleted: false };
     }
   }
 }

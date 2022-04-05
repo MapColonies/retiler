@@ -3,7 +3,7 @@ import { Job } from './jobQueueProvider/interfaces';
 import { TileWithBuffer } from './types';
 
 export interface JobQueueProvider {
-  queueName: string;
+  readonly queueName: string;
   get: <T>() => Promise<Job<T> | null>;
   isEmpty: () => Promise<boolean>;
   complete: (id: string, data?: object) => Promise<void>;
