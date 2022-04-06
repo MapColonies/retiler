@@ -10,8 +10,12 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public constructor(
     private readonly pgBoss: PgBoss,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(QUEUE_NAME) public readonly queueName: string
+    @inject(QUEUE_NAME) private readonly queueName: string
   ) {}
+
+  public get activeQueueName(): string {
+    return this.queueName;
+  }
 
   public async complete(id: string, data?: object): Promise<void> {
     const completePromise = data !== undefined ? this.pgBoss.complete(id, data) : this.pgBoss.complete(id);
@@ -27,11 +31,6 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     return this.pgBoss.fetch<T>(this.queueName);
   }
 
-  public async isEmpty(): Promise<boolean> {
-    const count = await this.pgBoss.getQueueSize(this.queueName);
-    return count === 0;
-  }
-
   public async startQueue(): Promise<void> {
     this.pgBoss.on('error', (err) => {
       this.logger.error(err, 'pg-boss error');
@@ -42,5 +41,16 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
   public async stopQueue(): Promise<void> {
     await this.pgBoss.stop();
+  }
+
+  public async *iterateJobs<T>(): AsyncGenerator<Job<T>> {
+    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally
+    while (true) {
+      const job = await this.get<T>();
+      if (job === null) {
+        break;
+      }
+      yield job;
+    }
   }
 }

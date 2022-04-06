@@ -3,9 +3,9 @@ import { Job } from './jobQueueProvider/interfaces';
 import { TileWithBuffer } from './types';
 
 export interface JobQueueProvider {
-  readonly queueName: string;
+  activeQueueName: string;
   get: <T>() => Promise<Job<T> | null>;
-  isEmpty: () => Promise<boolean>;
+  iterateJobs: <T>() => AsyncGenerator<Job<T>>;
   complete: (id: string, data?: object) => Promise<void>;
   fail: (id: string, data?: object) => Promise<void>;
   startQueue: () => Promise<void>;
