@@ -6,11 +6,12 @@ import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
 import { get } from 'config';
 import { DependencyContainer } from 'tsyringe';
-import { DEFAULT_SERVER_PORT, SERVICES } from './common/constants';
+import { DEFAULT_SERVER_PORT, JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
 import { ErrorWithExitCode } from './common/errors';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { registerExternalValues } from './containerConfig';
-import { TileConsumer } from './retiler/tileConsumer';
+import { JobQueueProvider } from './retiler/interfaces';
+import { TileProcessor } from './retiler/tileProcessor';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -49,8 +50,10 @@ void registerExternalValues()
       logger.info(`app started on port ${port}`);
     });
 
-    const tileConsumer = container.resolve(TileConsumer);
-    await tileConsumer.consumeTile();
+    const processor = container.resolve(TileProcessor);
+    const queueProv = container.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
+
+    await queueProv.consumeQueue(processor.processTile.bind(processor));
 
     server.close();
   })

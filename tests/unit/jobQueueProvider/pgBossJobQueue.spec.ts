@@ -52,81 +52,38 @@ describe('PgBossJobQueueProvider', () => {
     });
   });
 
-  describe('#complete', () => {
-    it('should complete with no errors if none were thrown', async () => {
-      pgbossMock.complete.mockResolvedValue(undefined);
-      const promise = provider.complete('someId');
-      await expect(promise).resolves.not.toThrow();
-    });
-
-    it('should complete with no errors and pass the given object argument if none were thrown', async () => {
-      pgbossMock.complete.mockResolvedValue(undefined);
-      const id = 'someId';
-      const obj = { key: 'value' };
-
-      const promise = provider.complete(id, obj);
-      await expect(promise).resolves.not.toThrow();
-      expect(pgbossMock.complete).toHaveBeenCalledWith(id, obj);
-    });
-
-    it('should reject with an error if complete rejected with an error', async () => {
-      pgbossMock.complete.mockRejectedValue(new Error('fatal error'));
-      const promise = provider.complete('someId');
-      await expect(promise).rejects.toThrow(Error);
-    });
-  });
-
-  describe('#fail', () => {
-    it('should call for a fail with no errors if none were thrown', async () => {
-      pgbossMock.fail.mockResolvedValue(undefined);
-      const promise = provider.fail('someId', { key: 'value' });
-      await expect(promise).resolves.not.toThrow();
-    });
-
-    it('should fail with no errors and pass the given object argument if none were thrown', async () => {
-      pgbossMock.fail.mockResolvedValue(undefined);
-      const id = 'someId';
-      const obj = { key: 'value' };
-
-      const promise = provider.fail(id, obj);
-      await expect(promise).resolves.not.toThrow();
-      expect(pgbossMock.fail).toHaveBeenCalledWith(id, obj);
-    });
-
-    it('should reject with an error if fail rejected with an error', async () => {
-      pgbossMock.fail.mockRejectedValue(new Error('fatal error'));
-      const promise = provider.fail('someId', { key: 'value' });
-      await expect(promise).rejects.toThrow(Error);
-    });
-  });
-
-  describe('#iterateJobs', () => {
+  describe('#consumeQueue', () => {
     it('should not iterate on any jobs if no jobs were fetched', async () => {
       pgbossMock.fetch.mockResolvedValue(null);
-      const jobGenerator = provider.iterateJobs();
-
-      await expect(jobGenerator.next()).resolves.toHaveProperty('value', undefined);
+      await expect(provider.consumeQueue(jest.fn())).resolves.not.toThrow();
     });
 
-    it('should iterate on jobs until there are no jobs fetch', async () => {
+    it('should consume the queue and call the provided func until there are no jobs fetch', async () => {
+      const job1 = { id: 'id1', data: { key: 'value' } };
+      const job2 = { id: 'id2', data: { key: 'value' } };
+
+      const fnMock = jest.fn();
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(null);
+
+      await expect(provider.consumeQueue(fnMock)).resolves.not.toThrow();
+
+      expect(fnMock).toHaveBeenCalledTimes(2);
+      expect(pgbossMock.complete).toHaveBeenCalled();
+      expect(pgbossMock.fail).not.toHaveBeenCalled();
+    });
+
+    it('should reject with an error if provided function for consuming has failed', async () => {
       const id = 'someId';
-      const obj = { key: 'value' };
+      pgbossMock.fetch.mockResolvedValueOnce({ id });
 
-      pgbossMock.fetch.mockResolvedValueOnce({ id, data: obj });
-      const jobGenerator = provider.iterateJobs();
-      await expect(jobGenerator.next()).resolves.toHaveProperty('value', { id, data: obj });
-
-      pgbossMock.fetch.mockResolvedValueOnce(null);
-      await expect(jobGenerator.next()).resolves.toHaveProperty('value', undefined);
-    });
-
-    it('should reject with an error if fetch has failed', async () => {
+      const fnMock = jest.fn();
       const fetchError = new Error('fetch error');
-      pgbossMock.fetch.mockRejectedValue(fetchError);
+      fnMock.mockRejectedValue(fetchError);
 
-      const jobGenerator = provider.iterateJobs();
+      await expect(provider.consumeQueue(fnMock)).resolves.not.toThrow();
 
-      await expect(jobGenerator.next()).rejects.toThrow(fetchError);
+      expect(pgbossMock.complete).not.toHaveBeenCalled();
+      expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);
     });
   });
 });

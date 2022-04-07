@@ -2,7 +2,7 @@ import { Logger } from '@map-colonies/js-logger';
 import { Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { inject, injectable } from 'tsyringe';
 import { TILE_SIZE, MAP_PROVIDER, MAP_SPLITTER_PROVIDER, SERVICES, TILES_STORAGE_PROVIDER } from '../common/constants';
-import { measurePromise, roundMs } from '../common/util';
+import { roundMs, timerify } from '../common/util';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
 
 @injectable()
@@ -20,20 +20,17 @@ export class TileProcessor {
 
     const bbox = tileToBoundingBox(tile);
     const mapSizePerAxis = tile.metatile * TILE_SIZE;
-    const getMapPromise = this.mapProvider.getMap(bbox, mapSizePerAxis, mapSizePerAxis);
-    const [mapBuffer, getMapDuration] = await measurePromise(getMapPromise);
+    const [mapBuffer, getMapDuration] = await timerify(this.mapProvider.getMap, bbox, mapSizePerAxis, mapSizePerAxis);
 
     this.logger.debug(`got map in ${roundMs(getMapDuration)}`);
 
-    const splitMapPromise = this.mapSplitter.splitMap(tile, mapBuffer);
-    const [tiles, splitMapDuration] = await measurePromise(splitMapPromise);
+    const [tiles, splitMapDuration] = await timerify(this.mapSplitter.splitMap, tile, mapBuffer);
 
     this.logger.debug(`splitted map in ${roundMs(splitMapDuration)}`);
 
     this.logger.debug(`storing tiles, ${tiles.length} tiles to be stored`);
 
-    const storeTilesPromise = Promise.all(tiles.map(async (tile) => this.tilesStorageProvider.storeTile(tile)));
-    const [, storeTilesDuration] = await measurePromise(storeTilesPromise);
+    const [, storeTilesDuration] = await timerify(this.tilesStorageProvider.storeTiles, tiles);
 
     this.logger.debug(`stored tiles in ${roundMs(storeTilesDuration)}`);
   }

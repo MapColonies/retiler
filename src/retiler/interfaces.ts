@@ -1,13 +1,9 @@
 import { BoundingBox, Tile } from '@map-colonies/tile-calc';
-import { Job } from './jobQueueProvider/interfaces';
 import { TileWithBuffer } from './types';
 
 export interface JobQueueProvider {
   activeQueueName: string;
-  get: <T>() => Promise<Job<T> | null>;
-  iterateJobs: <T>() => AsyncGenerator<Job<T>>;
-  complete: (id: string, data?: object) => Promise<void>;
-  fail: (id: string, data?: object) => Promise<void>;
+  consumeQueue: <T1, T2 = void>(fn: (value: T1) => Promise<T2>) => Promise<void>;
   startQueue: () => Promise<void>;
   stopQueue: () => Promise<void>;
 }
@@ -22,4 +18,5 @@ export interface MapSplitterProvider {
 
 export interface TilesStorageProvider {
   storeTile: (tile: TileWithBuffer) => Promise<void>;
+  storeTiles: (tile: TileWithBuffer[]) => Promise<void>;
 }

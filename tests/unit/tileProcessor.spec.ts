@@ -12,6 +12,7 @@ describe('TileProcessor', () => {
     const getMap = jest.fn();
     const splitMap = jest.fn();
     const storeTile = jest.fn();
+    const storeTiles = jest.fn();
 
     beforeEach(function () {
       mapProv = {
@@ -24,6 +25,7 @@ describe('TileProcessor', () => {
 
       tilesStorageProv = {
         storeTile,
+        storeTiles,
       };
 
       processor = new TileProcessor(jsLogger({ enabled: false }), mapProv, mapSplitterProv, tilesStorageProv);
@@ -33,7 +35,7 @@ describe('TileProcessor', () => {
       jest.clearAllMocks();
     });
 
-    it('should resolve without errors if nothing had failed', async () => {
+    it('should call all the processing functions in a row and resolve without errors', async () => {
       const tile = { x: 0, y: 0, z: 0, metatile: 8 };
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
@@ -46,7 +48,7 @@ describe('TileProcessor', () => {
 
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
-      expect(tilesStorageProv.storeTile).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
     });
 
     it('should throw error if getting map has failed', async () => {
@@ -58,7 +60,7 @@ describe('TileProcessor', () => {
 
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
-      expect(tilesStorageProv.storeTile).not.toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
     });
 
     it('should throw error if splitting map has failed', async () => {
@@ -72,7 +74,7 @@ describe('TileProcessor', () => {
 
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
-      expect(tilesStorageProv.storeTile).not.toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
     });
 
     it('should throw error if storing tiles had failed', async () => {
@@ -84,13 +86,13 @@ describe('TileProcessor', () => {
         { z: 0, x: 1, y: 0, metatile: 1 },
       ]);
       const storeTileError = new Error('store tile error');
-      storeTile.mockRejectedValue(storeTileError);
+      storeTiles.mockRejectedValue(storeTileError);
 
       await expect(processor.processTile(tile)).rejects.toThrow(storeTileError);
 
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
-      expect(tilesStorageProv.storeTile).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
     });
   });
 });

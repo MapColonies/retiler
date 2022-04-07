@@ -7,16 +7,12 @@ export const roundMs = (number: number, precision = DEFAULT_PRECISION): string =
   return ms(+fixed);
 };
 
-export const measurePromise = async <T>(promise: Promise<T>): Promise<[T, number]> => {
-  let promiseResult: T;
-  let endTime: number;
+export const timerify = async <R, A extends unknown[]>(func: (...args: A) => Promise<R>, ...args: A): Promise<[R, number]> => {
   const startTime = performance.now();
 
-  try {
-    promiseResult = await promise;
-  } finally {
-    endTime = performance.now();
-  }
+  const funcResult = await func(...args);
 
-  return [promiseResult, endTime - startTime];
+  const endTime = performance.now();
+
+  return [funcResult, endTime - startTime];
 };
