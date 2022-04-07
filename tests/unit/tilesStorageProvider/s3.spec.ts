@@ -59,22 +59,14 @@ describe('S3TilesStorage', () => {
     });
 
     it('should resolve without an error if client send resolved', async function () {
-      const buffer = Buffer.from('test');
       mockedS3Client.send.mockResolvedValue(undefined as never);
 
+      const tile = { x: 1, y: 2, z: 3 };
+      const buffer = Buffer.from('test');
+
       const promise = storage.storeTiles([
-        {
-          buffer,
-          x: 1,
-          y: 2,
-          z: 3,
-        },
-        {
-          buffer,
-          x: 1,
-          y: 2,
-          z: 3,
-        },
+        { ...tile, buffer },
+        { ...tile, buffer },
       ]);
 
       await expect(promise).resolves.not.toThrow();
@@ -83,19 +75,14 @@ describe('S3TilesStorage', () => {
     it('should throw an S3Error if one of the requests had failed', async function () {
       const error = new Error('request failure error');
       mockedS3Client.send.mockRejectedValueOnce(error as never);
-      const buffer = Buffer.from('test');
 
-      const promise = storage.storeTiles([{
-        buffer,
-        x: 1,
-        y: 2,
-        z: 3,
-      }, {
-        buffer,
-        x: 1,
-        y: 2,
-        z: 3,
-      }]);
+      const buffer = Buffer.from('test');
+      const tile = { x: 1, y: 2, z: 3 };
+
+      const promise = storage.storeTiles([
+        { ...tile, buffer },
+        { ...tile, buffer },
+      ]);
 
       await expect(promise).rejects.toThrow(S3Error);
     });
