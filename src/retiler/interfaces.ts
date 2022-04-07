@@ -3,7 +3,7 @@ import { TileWithBuffer } from './types';
 
 export interface JobQueueProvider {
   activeQueueName: string;
-  consumeQueue: <T1, T2 = void>(fn: (value: T1) => Promise<T2>) => Promise<void>;
+  consumeQueue: <T, R = void>(fn: (value: T) => Promise<R>) => Promise<void>;
   startQueue: () => Promise<void>;
   stopQueue: () => Promise<void>;
 }
@@ -18,5 +18,5 @@ export interface MapSplitterProvider {
 
 export interface TilesStorageProvider {
   storeTile: (tile: TileWithBuffer) => Promise<void>;
-  storeTiles: (tile: TileWithBuffer[]) => Promise<void>;
+  storeTiles: (...tiles: TileWithBuffer[]) => Promise<void>;
 }

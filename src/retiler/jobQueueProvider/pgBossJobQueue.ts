@@ -30,10 +30,10 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     await this.pgBoss.stop();
   }
 
-  public async consumeQueue<T1, T2 = void>(fn: (value: T1) => Promise<T2>): Promise<void> {
+  public async consumeQueue<T, R = void>(fn: (value: T) => Promise<R>): Promise<void> {
     this.logger.info(`consuming queue ${this.queueName}`);
 
-    for await (const job of this.getJobsIterator<T1>()) {
+    for await (const job of this.getJobsIterator<T>()) {
       try {
         const [, processingDuration] = await timerify(fn, job.data);
 
@@ -52,7 +52,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   }
 
   private async *getJobsIterator<T>(): AsyncGenerator<Job<T>> {
-    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until empty which breakes the loop
+    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until empty which breaks the loop
     while (true) {
       const job = await this.pgBoss.fetch<T>(this.queueName);
       if (job === null) {

@@ -30,7 +30,7 @@ export class S3TilesStorage implements TilesStorageProvider {
     }
   }
 
-  public async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
+  public async storeTiles(...tiles: TileWithBuffer[]): Promise<void> {
     await Promise.all(tiles.map(async (tile) => this.storeTile(tile)));
   }
 
