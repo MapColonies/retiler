@@ -1,9 +1,9 @@
 import { Readable } from 'stream';
 import { AxiosError, AxiosInstance } from 'axios';
-import { BoundingBox } from '@map-colonies/tile-calc';
+import { Tile, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
-import { MAP_URL, SERVICES } from '../../common/constants';
+import { MAP_URL, SERVICES, TILE_SIZE } from '../../common/constants';
 import { MapProvider } from '../interfaces';
 import { ARCGIS_MAP_PARAMS } from './constants';
 
@@ -15,11 +15,16 @@ export class ArcgisExportMapProvider implements MapProvider {
     @inject(MAP_URL) private readonly mapUrl: string
   ) {}
 
-  public async getMap(bbox: BoundingBox, mapWidth: number, mapHeight: number): Promise<Buffer> {
+  public async getMap(tile: Required<Tile>): Promise<Buffer> {
+    this.logger.debug({ msg: `getting map from ${this.mapUrl}`, tile });
+
+    const bbox = tileToBoundingBox(tile);
+    const mapSizePerAxis = tile.metatile * TILE_SIZE;
+
     const requestParams = {
       ...ARCGIS_MAP_PARAMS,
       bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
-      size: `${mapWidth},${mapHeight}`,
+      size: `${mapSizePerAxis},${mapSizePerAxis}`,
     };
 
     try {

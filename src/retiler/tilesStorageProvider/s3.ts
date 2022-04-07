@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */ // s3-client object commands arguments
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
 import { inject, injectable } from 'tsyringe';
@@ -14,13 +15,18 @@ import { TileStoragLayout } from './interfaces';
 export class S3TilesStorage implements TilesStorageProvider {
   public constructor(
     @inject(SERVICES.S3) private readonly s3Client: S3Client,
+    @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(S3_BUCKET) private readonly bucket: string,
     @inject(TILES_STORAGE_LAYOUT) private readonly storageLayout: TileStoragLayout
   ) {}
 
-  public async storeTile(tile: TileWithBuffer): Promise<void> {
+  public async storeTile(tileWithBuffer: TileWithBuffer): Promise<void> {
+    const { buffer, ...tile } = tileWithBuffer;
+
+    this.logger.debug({ msg: 'storing tile', tile });
+
     const key = this.determineKey(tile);
-    const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: tile.buffer });
+    const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer });
 
     try {
       await this.s3Client.send(command);
@@ -31,6 +37,8 @@ export class S3TilesStorage implements TilesStorageProvider {
   }
 
   public async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
+    this.logger.debug({ msg: `storing ${tiles.length} tiles in bucket ${this.bucket}` });
+
     await Promise.all(tiles.map(async (tile) => this.storeTile(tile)));
   }
 

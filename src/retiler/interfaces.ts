@@ -1,4 +1,4 @@
-import { BoundingBox, Tile } from '@map-colonies/tile-calc';
+import { Tile } from '@map-colonies/tile-calc';
 import { TileWithBuffer } from './types';
 
 export interface JobQueueProvider {
@@ -9,7 +9,7 @@ export interface JobQueueProvider {
 }
 
 export interface MapProvider {
-  getMap: (bbox: BoundingBox, mapWidth: number, mapHeight: number) => Promise<Buffer>;
+  getMap: (tile: Required<Tile>) => Promise<Buffer>;
 }
 
 export interface MapSplitterProvider {

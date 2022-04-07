@@ -22,7 +22,9 @@ describe('arcgisExport', () => {
       const response = { data: Buffer.from('test') };
       mockedClient.get.mockResolvedValue(response);
 
-      const buffer = await arcgisMap.getMap({ east: 180, west: -180, north: 90, south: -90 }, 256, 256);
+      const tile = { z: 0, x: 0, y: 0, metatile: 1 };
+
+      const buffer = await arcgisMap.getMap(tile);
 
       expect(buffer).toBeInstanceOf(Buffer);
       expect(buffer.toString()).toBe('test');
@@ -33,7 +35,9 @@ describe('arcgisExport', () => {
       error.toJSON = jest.fn();
       mockedClient.get.mockRejectedValue(error);
 
-      const promise = arcgisMap.getMap({ east: 180, west: -180, north: 90, south: -90 }, 256, 256);
+      const tile = { z: 0, x: 0, y: 0, metatile: 1 };
+
+      const promise = arcgisMap.getMap(tile);
 
       await expect(promise).rejects.toThrow(error);
     });

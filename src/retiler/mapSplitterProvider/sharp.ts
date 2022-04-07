@@ -1,12 +1,19 @@
-import { Tile } from '@map-colonies/tile-calc';
 import sharp from 'sharp';
-import { TILE_SIZE } from '../../common/constants';
+import { inject, injectable } from 'tsyringe';
+import { Logger } from '@map-colonies/js-logger';
+import { Tile } from '@map-colonies/tile-calc';
+import { SERVICES, TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
 import { isTileInBounds } from '../util';
 
+@injectable()
 export class SharpMapSplitter implements MapSplitterProvider {
+  public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger) {}
+
   public async splitMap(tile: Tile, buffer: Buffer): Promise<TileWithBuffer[]> {
+    this.logger.debug({ msg: 'splitting tile', tile });
+
     const promises: Promise<Buffer>[] = [];
     const tiles: Tile[] = [];
 

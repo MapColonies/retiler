@@ -1,13 +1,14 @@
 import { readFile } from 'fs/promises';
 import sharp from 'sharp';
 import faker from '@faker-js/faker';
+import jsLogger from '@map-colonies/js-logger';
 import { SharpMapSplitter } from '../../../src/retiler/mapSplitterProvider/sharp';
 
 describe('SharpMapSplitter', () => {
   describe('#splitMap', () => {
     let splitter: SharpMapSplitter;
     beforeEach(function () {
-      splitter = new SharpMapSplitter();
+      splitter = new SharpMapSplitter(jsLogger({ enabled: false }));
     });
     afterEach(function () {
       jest.clearAllMocks();

@@ -38,9 +38,12 @@ export interface RegisterOptions {
 export const registerExternalValues = async (options?: RegisterOptions): Promise<DependencyContainer> => {
   const shutdownHandler = new ShutdownHandler();
   try {
+    const queueName = config.get<string>('app.queueName');
+
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
+    console.log(loggerConfig.prettyPrint);
     // @ts-expect-error the signature is wrong
-    const logger = jsLogger({ ...loggerConfig, prettyPrint: loggerConfig.prettyPrint, hooks: { logMethod } });
+    const logger = jsLogger({ ...loggerConfig, prettyPrint: false, hooks: { logMethod }, base: { queue: queueName } });
 
     const pgBossConfig = config.get<PgBossConfig>('app.jobQueue.pgBoss');
     const pgBoss = await pgBossFactory(pgBossConfig);
@@ -63,7 +66,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
       { token: SERVICES.S3, provider: { useValue: s3Client } },
       { token: PgBoss, provider: { useValue: pgBoss } },
-      { token: QUEUE_NAME, provider: { useValue: config.get<string>('app.queueName') } },
+      { token: QUEUE_NAME, provider: { useValue: queueName } },
       {
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },

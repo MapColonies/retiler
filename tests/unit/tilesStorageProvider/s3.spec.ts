@@ -1,22 +1,24 @@
 import { S3Client } from '@aws-sdk/client-s3';
+import jsLogger from '@map-colonies/js-logger';
 import { S3Error } from '../../../src/common/errors';
 import { S3TilesStorage } from '../../../src/retiler/tilesStorageProvider/s3';
 
 jest.mock('@aws-sdk/client-s3');
 
 describe('S3TilesStorage', () => {
+  let storage: S3TilesStorage;
+  let mockedS3Client: jest.Mocked<S3Client>;
+
+  beforeEach(function () {
+    mockedS3Client = new S3Client({}) as jest.Mocked<S3Client>;
+    storage = new S3TilesStorage(mockedS3Client, jsLogger({ enabled: false }), 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldFlipY: true });
+  });
+
+  afterEach(function () {
+    jest.clearAllMocks();
+  });
+
   describe('#storeTile', () => {
-    let storage: S3TilesStorage;
-    let mockedS3Client: jest.Mocked<S3Client>;
-
-    beforeEach(function () {
-      mockedS3Client = new S3Client({}) as jest.Mocked<S3Client>;
-      storage = new S3TilesStorage(mockedS3Client, 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldFlipY: true });
-    });
-    afterEach(function () {
-      jest.clearAllMocks();
-    });
-
     it('should resolve without an error if client send resolved', async function () {
       const buffer = Buffer.from('test');
       mockedS3Client.send.mockResolvedValue(undefined as never);
@@ -47,17 +49,6 @@ describe('S3TilesStorage', () => {
   });
 
   describe('#storeTiles', () => {
-    let storage: S3TilesStorage;
-    let mockedS3Client: jest.Mocked<S3Client>;
-
-    beforeEach(function () {
-      mockedS3Client = new S3Client({}) as jest.Mocked<S3Client>;
-      storage = new S3TilesStorage(mockedS3Client, 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldFlipY: true });
-    });
-    afterEach(function () {
-      jest.clearAllMocks();
-    });
-
     it('should resolve without an error if client send resolved', async function () {
       mockedS3Client.send.mockResolvedValue(undefined as never);
 

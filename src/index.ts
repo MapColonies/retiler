@@ -25,7 +25,6 @@ const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
 void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
-    const logger = container.resolve<Logger>(SERVICES.LOGGER);
 
     const shutdownHandler = container.resolve(ShutdownHandler);
 
@@ -46,9 +45,7 @@ void registerExternalValues()
       onSignal: shutdownHandler.shutdown.bind(shutdownHandler),
     });
 
-    server.listen(port, () => {
-      logger.info(`app started on port ${port}`);
-    });
+    server.listen(port);
 
     const processor = container.resolve(TileProcessor);
     const queueProv = container.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
