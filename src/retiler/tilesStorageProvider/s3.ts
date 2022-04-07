@@ -30,6 +30,10 @@ export class S3TilesStorage implements TilesStorageProvider {
     }
   }
 
+  public async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
+    await Promise.all(tiles.map(async (tile) => this.storeTile(tile)));
+  }
+
   private determineKey(tile: Tile): string {
     if (this.storageLayout.shouldFlipY) {
       tile.y = getFlippedY(tile);

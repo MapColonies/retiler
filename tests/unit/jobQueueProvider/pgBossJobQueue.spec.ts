@@ -4,7 +4,15 @@ import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pg
 
 describe('PgBossJobQueueProvider', () => {
   let provider: PgBossJobQueueProvider;
-  let pgbossMock: { on: jest.Mock; start: jest.Mock; stop: jest.Mock; getQueueSize: jest.Mock; complete: jest.Mock; fail: jest.Mock };
+  let pgbossMock: {
+    on: jest.Mock;
+    start: jest.Mock;
+    stop: jest.Mock;
+    getQueueSize: jest.Mock;
+    complete: jest.Mock;
+    fail: jest.Mock;
+    fetch: jest.Mock;
+  };
 
   beforeAll(() => {
     pgbossMock = {
@@ -14,74 +22,68 @@ describe('PgBossJobQueueProvider', () => {
       getQueueSize: jest.fn(),
       complete: jest.fn(),
       fail: jest.fn(),
+      fetch: jest.fn(),
     };
   });
+
   beforeEach(function () {
     provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, jsLogger({ enabled: false }), 'queue-name');
   });
+
   afterEach(function () {
     jest.clearAllMocks();
   });
 
-  it('should start pg-boss', async () => {
-    await expect(provider.startQueue()).resolves.not.toThrow();
+  describe('#startQueue', () => {
+    it('should start pg-boss', async () => {
+      await expect(provider.startQueue()).resolves.not.toThrow();
+    });
   });
 
-  it('should stop the queue', async () => {
-    await expect(provider.stopQueue()).resolves.not.toThrow();
+  describe('#stopQueue', () => {
+    it('should stop the queue', async () => {
+      await expect(provider.stopQueue()).resolves.not.toThrow();
+    });
   });
 
-  it('should return true if the queue is empty', async () => {
-    pgbossMock.getQueueSize.mockResolvedValue(0);
-    await expect(provider.isEmpty()).resolves.toBe(true);
+  describe('#activeQueueName', () => {
+    it('should return the queue name', () => {
+      expect(provider.activeQueueName).toBe('queue-name');
+    });
   });
 
-  it('should return false if the queue is not empty', async () => {
-    pgbossMock.getQueueSize.mockResolvedValue(1);
-    await expect(provider.isEmpty()).resolves.toBe(false);
-  });
+  describe('#consumeQueue', () => {
+    it('should not iterate on any jobs if no jobs were fetched', async () => {
+      pgbossMock.fetch.mockResolvedValue(null);
+      await expect(provider.consumeQueue(jest.fn())).resolves.not.toThrow();
+    });
 
-  it('should complete with no errors if none were thrown', async () => {
-    pgbossMock.complete.mockResolvedValue(undefined);
-    const promise = provider.complete('someId');
-    await expect(promise).resolves.not.toThrow();
-  });
+    it('should consume the queue and call the provided func until there are no jobs fetch', async () => {
+      const job1 = { id: 'id1', data: { key: 'value' } };
+      const job2 = { id: 'id2', data: { key: 'value' } };
 
-  it('should complete with no errors and pass the given object argument if none were thrown', async () => {
-    pgbossMock.complete.mockResolvedValue(undefined);
-    const id = 'someId';
-    const obj = { key: 'value' };
+      const fnMock = jest.fn();
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(null);
 
-    const promise = provider.complete(id, obj);
-    await expect(promise).resolves.not.toThrow();
-    expect(pgbossMock.complete).toHaveBeenCalledWith(id, obj);
-  });
+      await expect(provider.consumeQueue(fnMock)).resolves.not.toThrow();
 
-  it('should reject with an error if complete rejected with an error', async () => {
-    pgbossMock.complete.mockRejectedValue(new Error('fatal error'));
-    const promise = provider.complete('someId');
-    await expect(promise).rejects.toThrow(Error);
-  });
+      expect(fnMock).toHaveBeenCalledTimes(2);
+      expect(pgbossMock.complete).toHaveBeenCalled();
+      expect(pgbossMock.fail).not.toHaveBeenCalled();
+    });
 
-  it('should call for a fail with no errors if none were thrown', async () => {
-    pgbossMock.fail.mockResolvedValue(undefined);
-    const promise = provider.fail('someId', { key: 'value' });
-    await expect(promise).resolves.not.toThrow();
-  });
+    it('should reject with an error if provided function for consuming has failed', async () => {
+      const id = 'someId';
+      pgbossMock.fetch.mockResolvedValueOnce({ id });
 
-  it('should fail with no errors and pass the given object argument if none were thrown', async () => {
-    pgbossMock.fail.mockResolvedValue(undefined);
-    const id = 'someId';
-    const obj = { key: 'value' };
+      const fnMock = jest.fn();
+      const fetchError = new Error('fetch error');
+      fnMock.mockRejectedValue(fetchError);
 
-    const promise = provider.fail(id, obj);
-    await expect(promise).resolves.not.toThrow();
-    expect(pgbossMock.fail).toHaveBeenCalledWith(id, obj);
-  });
+      await expect(provider.consumeQueue(fnMock)).resolves.not.toThrow();
 
-  it('should reject with an error if fail rejected with an error', async () => {
-    pgbossMock.fail.mockRejectedValue(new Error('fatal error'));
-    const promise = provider.fail('someId', { key: 'value' });
-    await expect(promise).rejects.toThrow(Error);
+      expect(pgbossMock.complete).not.toHaveBeenCalled();
+      expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);
+    });
   });
 });

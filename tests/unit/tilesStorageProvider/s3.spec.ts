@@ -45,4 +45,46 @@ describe('S3TilesStorage', () => {
       await expect(promise).rejects.toThrow(S3Error);
     });
   });
+
+  describe('#storeTiles', () => {
+    let storage: S3TilesStorage;
+    let mockedS3Client: jest.Mocked<S3Client>;
+
+    beforeEach(function () {
+      mockedS3Client = new S3Client({}) as jest.Mocked<S3Client>;
+      storage = new S3TilesStorage(mockedS3Client, 'test-bucket', { format: 'test/{z}/{x}/{y}.png', shouldFlipY: true });
+    });
+    afterEach(function () {
+      jest.clearAllMocks();
+    });
+
+    it('should resolve without an error if client send resolved', async function () {
+      mockedS3Client.send.mockResolvedValue(undefined as never);
+
+      const tile = { x: 1, y: 2, z: 3 };
+      const buffer = Buffer.from('test');
+
+      const promise = storage.storeTiles([
+        { ...tile, buffer },
+        { ...tile, buffer },
+      ]);
+
+      await expect(promise).resolves.not.toThrow();
+    });
+
+    it('should throw an S3Error if one of the requests had failed', async function () {
+      const error = new Error('request failure error');
+      mockedS3Client.send.mockRejectedValueOnce(error as never);
+
+      const buffer = Buffer.from('test');
+      const tile = { x: 1, y: 2, z: 3 };
+
+      const promise = storage.storeTiles([
+        { ...tile, buffer },
+        { ...tile, buffer },
+      ]);
+
+      await expect(promise).rejects.toThrow(S3Error);
+    });
+  });
 });
