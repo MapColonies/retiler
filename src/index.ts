@@ -4,7 +4,7 @@ import 'reflect-metadata';
 import http from 'http';
 import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
-import { get } from 'config';
+import config from 'config';
 import { DependencyContainer } from 'tsyringe';
 import { DEFAULT_SERVER_PORT, JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
 import { ErrorWithExitCode } from './common/errors';
@@ -19,7 +19,7 @@ interface IServerConfig {
   port: string;
 }
 
-const serverConfig = get<IServerConfig>('server');
+const serverConfig = config.get<IServerConfig>('server');
 const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
 
 void registerExternalValues()

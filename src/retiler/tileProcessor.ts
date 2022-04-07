@@ -20,17 +20,17 @@ export class TileProcessor {
 
     const bbox = tileToBoundingBox(tile);
     const mapSizePerAxis = tile.metatile * TILE_SIZE;
-    const [mapBuffer, getMapDuration] = await timerify(this.mapProvider.getMap, bbox, mapSizePerAxis, mapSizePerAxis);
+    const [mapBuffer, getMapDuration] = await timerify(this.mapProvider.getMap.bind(this.mapProvider), bbox, mapSizePerAxis, mapSizePerAxis);
 
     this.logger.debug(`got map in ${roundMs(getMapDuration)}`);
 
-    const [tiles, splitMapDuration] = await timerify(this.mapSplitter.splitMap, tile, mapBuffer);
+    const [tiles, splitMapDuration] = await timerify(this.mapSplitter.splitMap.bind(this.mapSplitter), tile, mapBuffer);
 
     this.logger.debug(`splitted map in ${roundMs(splitMapDuration)}`);
 
     this.logger.debug(`storing tiles, ${tiles.length} tiles to be stored`);
 
-    const [, storeTilesDuration] = await timerify(this.tilesStorageProvider.storeTiles, tiles);
+    const [, storeTilesDuration] = await timerify(this.tilesStorageProvider.storeTiles.bind(this.tilesStorageProvider), tiles);
 
     this.logger.debug(`stored tiles in ${roundMs(storeTilesDuration)}`);
   }
