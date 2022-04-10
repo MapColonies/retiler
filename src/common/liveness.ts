@@ -1,0 +1,35 @@
+import http from 'http';
+import { createTerminus } from '@godaddy/terminus';
+import { DependencyContainer } from 'tsyringe';
+import { IConfig, IServerConfig } from './interfaces';
+import { DEFAULT_SERVER_PORT, SERVICES } from './constants';
+import { ShutdownHandler } from './shutdownHandler';
+
+const stubHealthcheck = async (): Promise<void> => Promise.resolve();
+
+export const initLiveness = (container: DependencyContainer): http.Server => {
+  const config = container.resolve<IConfig>(SERVICES.CONFIG);
+  const serverConfig = config.get<IServerConfig>('server');
+  const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
+
+  const server = http.createServer((request, response) => {
+    response.end(`running at http://localhost:${port}`);
+  });
+
+  const shutdownHandler = container.resolve(ShutdownHandler);
+
+  server.on('close', () => {
+    void shutdownHandler.shutdown();
+    server.unref();
+    process.exit();
+  });
+
+  createTerminus(server, {
+    healthChecks: { '/liveness': stubHealthcheck },
+    onSignal: shutdownHandler.shutdown.bind(shutdownHandler),
+  });
+
+  server.listen(port);
+
+  return server;
+};
