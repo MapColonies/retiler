@@ -28,6 +28,7 @@ describe('S3TilesStorage', () => {
         x: 1,
         y: 2,
         z: 3,
+        metatile: 1,
       });
 
       await expect(promise).resolves.not.toThrow();
@@ -42,6 +43,7 @@ describe('S3TilesStorage', () => {
         x: 1,
         y: 2,
         z: 3,
+        metatile: 1,
       });
 
       await expect(promise).rejects.toThrow(S3Error);
@@ -52,7 +54,7 @@ describe('S3TilesStorage', () => {
     it('should resolve without an error if client send resolved', async function () {
       mockedS3Client.send.mockResolvedValue(undefined as never);
 
-      const tile = { x: 1, y: 2, z: 3 };
+      const tile = { x: 1, y: 2, z: 3, metatile: 1 };
       const buffer = Buffer.from('test');
 
       const promise = storage.storeTiles([
@@ -68,7 +70,7 @@ describe('S3TilesStorage', () => {
       mockedS3Client.send.mockRejectedValueOnce(error as never);
 
       const buffer = Buffer.from('test');
-      const tile = { x: 1, y: 2, z: 3 };
+      const tile = { x: 1, y: 2, z: 3, metatile: 1 };
 
       const promise = storage.storeTiles([
         { ...tile, buffer },

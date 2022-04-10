@@ -1,9 +1,8 @@
 import { Logger } from '@map-colonies/js-logger';
-import { Tile } from '@map-colonies/tile-calc';
 import { inject, injectable } from 'tsyringe';
 import { MAP_PROVIDER, MAP_SPLITTER_PROVIDER, SERVICES, TILES_STORAGE_PROVIDER } from '../common/constants';
-import { timerify } from '../common/util';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
+import { TileWithMetadata } from './types';
 
 @injectable()
 export class TileProcessor {
@@ -14,19 +13,11 @@ export class TileProcessor {
     @inject(TILES_STORAGE_PROVIDER) private readonly tilesStorageProvider: TilesStorageProvider
   ) {}
 
-  public async processTile(tile: Required<Tile>): Promise<void> {
-    this.logger.debug({ msg: 'starting to process', tile });
+  public async processTile(tile: TileWithMetadata): Promise<void> {
+    const mapBuffer = await this.mapProvider.getMap(tile);
 
-    const [mapBuffer, getMapDuration] = await timerify(this.mapProvider.getMap.bind(this.mapProvider), tile);
+    const tiles = await this.mapSplitter.splitMap({ ...tile, buffer: mapBuffer });
 
-    this.logger.debug({ msg: 'finished getting map', tile, duration: getMapDuration });
-
-    const [tiles, splitMapDuration] = await timerify(this.mapSplitter.splitMap.bind(this.mapSplitter), tile, mapBuffer);
-
-    this.logger.debug({ msg: 'finished splitting tile', tile, duration: splitMapDuration });
-
-    const [, storeTilesDuration] = await timerify(this.tilesStorageProvider.storeTiles.bind(this.tilesStorageProvider), tiles);
-
-    this.logger.debug({ msg: 'finished storing tiles', tile, duration: storeTilesDuration });
+    await this.tilesStorageProvider.storeTiles(tiles);
   }
 }

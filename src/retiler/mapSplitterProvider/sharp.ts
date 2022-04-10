@@ -6,19 +6,21 @@ import { SERVICES, TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
 import { isTileInBounds } from '../util';
+import { timerify } from '../../common/util';
 
 @injectable()
 export class SharpMapSplitter implements MapSplitterProvider {
   public constructor(@inject(SERVICES.LOGGER) private readonly logger: Logger) {}
 
-  public async splitMap(tile: Tile, buffer: Buffer): Promise<TileWithBuffer[]> {
-    this.logger.debug({ msg: 'splitting tile', tile });
+  public async splitMap(tile: TileWithBuffer): Promise<TileWithBuffer[]> {
+    const { buffer, parent, ...baseTile } = tile;
+    this.logger.debug({ msg: 'splitting tile', tile: baseTile, parent });
 
     const promises: Promise<Buffer>[] = [];
-    const tiles: Tile[] = [];
+    const tiles: Required<Tile>[] = [];
 
-    const pipeline = sharp(buffer);
-    const splitsPerAxis = tile.metatile ?? 1;
+    const pipeline = sharp(tile.buffer);
+    const splitsPerAxis = tile.metatile;
     pipeline.setMaxListeners(splitsPerAxis * splitsPerAxis + 1 + 1);
 
     for (let row = 0; row < splitsPerAxis; row++) {
@@ -38,7 +40,10 @@ export class SharpMapSplitter implements MapSplitterProvider {
       }
     }
 
-    const buffers = await Promise.all(promises);
-    return buffers.map((buffer, index) => ({ ...tiles[index], buffer }));
+    const [buffers, duration] = await timerify(async () => Promise.all(promises));
+
+    this.logger.debug({ msg: 'finished splitting tile', tile: baseTile, duration, parent });
+
+    return buffers.map((buffer, index) => ({ ...tiles[index], buffer, parent }));
   }
 }

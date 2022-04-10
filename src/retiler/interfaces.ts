@@ -1,5 +1,4 @@
-import { Tile } from '@map-colonies/tile-calc';
-import { TileWithBuffer } from './types';
+import { TileWithBuffer, TileWithMetadata } from './types';
 
 export interface JobQueueProvider {
   activeQueueName: string;
@@ -9,11 +8,11 @@ export interface JobQueueProvider {
 }
 
 export interface MapProvider {
-  getMap: (tile: Required<Tile>) => Promise<Buffer>;
+  getMap: (tile: TileWithMetadata) => Promise<Buffer>;
 }
 
 export interface MapSplitterProvider {
-  splitMap: (tile: Tile, buffer: Buffer) => Promise<TileWithBuffer[]>;
+  splitMap: (tile: TileWithBuffer) => Promise<TileWithBuffer[]>;
 }
 
 export interface TilesStorageProvider {

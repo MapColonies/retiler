@@ -41,9 +41,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const queueName = config.get<string>('app.queueName');
 
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
-    console.log(loggerConfig.prettyPrint);
     // @ts-expect-error the signature is wrong
-    const logger = jsLogger({ ...loggerConfig, prettyPrint: false, hooks: { logMethod }, base: { queue: queueName } });
+    const logger = jsLogger({ ...loggerConfig, hooks: { logMethod }, base: { queue: queueName } });
 
     const pgBossConfig = config.get<PgBossConfig>('app.jobQueue.pgBoss');
     const pgBoss = await pgBossFactory(pgBossConfig);

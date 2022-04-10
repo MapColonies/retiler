@@ -6,6 +6,7 @@ import Format from 'string-format';
 import { inject, injectable } from 'tsyringe';
 import { S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../common/constants';
 import { S3Error } from '../../common/errors';
+import { timerify } from '../../common/util';
 import { TilesStorageProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
 import { getFlippedY } from '../util';
@@ -21,11 +22,11 @@ export class S3TilesStorage implements TilesStorageProvider {
   ) {}
 
   public async storeTile(tileWithBuffer: TileWithBuffer): Promise<void> {
-    const { buffer, ...tile } = tileWithBuffer;
+    const { buffer, parent, ...baseTile } = tileWithBuffer;
 
-    this.logger.debug({ msg: 'storing tile', tile });
+    this.logger.debug({ msg: 'storing tile', tile: baseTile, parent });
 
-    const key = this.determineKey(tile);
+    const key = this.determineKey(baseTile);
     const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer });
 
     try {
@@ -37,9 +38,12 @@ export class S3TilesStorage implements TilesStorageProvider {
   }
 
   public async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
-    this.logger.debug({ msg: `storing ${tiles.length} tiles in bucket ${this.bucket}` });
+    const parent = tiles[0].parent;
+    this.logger.debug({ msg: `storing ${tiles.length} tiles in bucket ${this.bucket}`, parent });
 
-    await Promise.all(tiles.map(async (tile) => this.storeTile(tile)));
+    const [, duration] = await timerify(async () => Promise.all(tiles.map(async (tile) => this.storeTile(tile))));
+
+    this.logger.debug({ msg: 'finished storing tiles', duration, parent });
   }
 
   private determineKey(tile: Tile): string {

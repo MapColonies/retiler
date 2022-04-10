@@ -35,11 +35,11 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
     for await (const job of this.getJobsIterator<T>()) {
       try {
-        this.logger.info({ msg: 'job fetched', job: job.id });
+        this.logger.info({ msg: 'job fetched from queue', jobId: job.id });
 
-        const [, fnDuration] = await timerify(fn, job.data);
+        const [, duration] = await timerify(fn, job.data);
 
-        this.logger.info({ msg: 'job completed successfully', job: job.id, duration: fnDuration });
+        this.logger.info({ msg: 'job completed successfully', jobId: job.id, duration });
 
         await this.pgBoss.complete(job.id);
       } catch (err) {

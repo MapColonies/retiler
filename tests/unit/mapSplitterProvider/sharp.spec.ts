@@ -19,7 +19,7 @@ describe('SharpMapSplitter', () => {
       const zoom = faker.datatype.number({ min: 3, max: 20 });
       const buffer = await readFile('tests/2048x2048.png');
 
-      const tilesWithBuffers = await splitter.splitMap({ z: zoom, x: 0, y: 0, metatile: metatileValue }, buffer);
+      const tilesWithBuffers = await splitter.splitMap({ z: zoom, x: 0, y: 0, metatile: metatileValue, buffer });
       const tiles = tilesWithBuffers.map((tileWithBuffer) => {
         const { buffer, ...tile } = tileWithBuffer;
         return tile;
@@ -48,7 +48,7 @@ describe('SharpMapSplitter', () => {
     it('should split 2048x2048 image into 8 tiles on zoom 1, the rest are out of bounds', async function () {
       const buffer = await readFile('tests/2048x2048.png');
 
-      const tilesWithBuffers = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 8 }, buffer);
+      const tilesWithBuffers = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 8, buffer });
       const tiles = tilesWithBuffers.map((tileWithBuffer) => {
         const { buffer, ...tile } = tileWithBuffer;
         return tile;
@@ -80,7 +80,7 @@ describe('SharpMapSplitter', () => {
       const metatileValue = faker.datatype.number({ min: 2, max: 22 });
       const buffer = await readFile('tests/256x256.png');
 
-      const tiles = await splitter.splitMap({ z: 0, x: 0, y: 0, metatile: metatileValue }, buffer);
+      const tiles = await splitter.splitMap({ z: 0, x: 0, y: 0, metatile: metatileValue, buffer });
 
       expect(tiles).toContainSameTiles([
         { z: 0, x: 0, y: 0, metatile: 1 },
