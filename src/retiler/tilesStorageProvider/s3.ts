@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/naming-convention */ // s3-client object commands arguments
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
 import { inject, injectable } from 'tsyringe';
 import { S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../common/constants';
 import { S3Error } from '../../common/errors';
+import { timerify } from '../../common/util';
 import { TilesStorageProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
 import { getFlippedY } from '../util';
@@ -14,13 +16,18 @@ import { TileStoragLayout } from './interfaces';
 export class S3TilesStorage implements TilesStorageProvider {
   public constructor(
     @inject(SERVICES.S3) private readonly s3Client: S3Client,
+    @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(S3_BUCKET) private readonly bucket: string,
     @inject(TILES_STORAGE_LAYOUT) private readonly storageLayout: TileStoragLayout
   ) {}
 
-  public async storeTile(tile: TileWithBuffer): Promise<void> {
-    const key = this.determineKey(tile);
-    const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: tile.buffer });
+  public async storeTile(tileWithBuffer: TileWithBuffer): Promise<void> {
+    const { buffer, parent, ...baseTile } = tileWithBuffer;
+
+    this.logger.debug({ msg: `storing tile in bucket ${this.bucket}`, tile: baseTile, parent });
+
+    const key = this.determineKey(baseTile);
+    const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer });
 
     try {
       await this.s3Client.send(command);
@@ -31,7 +38,12 @@ export class S3TilesStorage implements TilesStorageProvider {
   }
 
   public async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
-    await Promise.all(tiles.map(async (tile) => this.storeTile(tile)));
+    const parent = tiles[0].parent;
+    this.logger.debug({ msg: `storing ${tiles.length} tiles in bucket ${this.bucket}`, parent });
+
+    const [, duration] = await timerify(async () => Promise.all(tiles.map(async (tile) => this.storeTile(tile))));
+
+    this.logger.debug({ msg: 'finished storing tiles', duration, parent });
   }
 
   private determineKey(tile: Tile): string {
