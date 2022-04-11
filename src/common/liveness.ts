@@ -1,5 +1,6 @@
 import http from 'http';
 import { createTerminus } from '@godaddy/terminus';
+import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
 import { IConfig, IServerConfig } from './interfaces';
 import { DEFAULT_SERVER_PORT, SERVICES } from './constants';
@@ -7,7 +8,7 @@ import { ShutdownHandler } from './shutdownHandler';
 
 const stubHealthcheck = async (): Promise<void> => Promise.resolve();
 
-export const initLiveness = (container: DependencyContainer): http.Server => {
+export const initLivenessProbe = (container: DependencyContainer): http.Server => {
   const config = container.resolve<IConfig>(SERVICES.CONFIG);
   const serverConfig = config.get<IServerConfig>('server');
   const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
@@ -29,7 +30,10 @@ export const initLiveness = (container: DependencyContainer): http.Server => {
     onSignal: shutdownHandler.shutdown.bind(shutdownHandler),
   });
 
-  server.listen(port);
+  server.listen(port, () => {
+    const logger = container.resolve<Logger>(SERVICES.LOGGER);
+    logger.debug(`liveness on port ${port}`);
+  });
 
   return server;
 };

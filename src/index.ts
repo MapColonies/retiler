@@ -9,7 +9,7 @@ import { ShutdownHandler } from './common/shutdownHandler';
 import { registerExternalValues } from './containerConfig';
 import { JobQueueProvider } from './retiler/interfaces';
 import { TileProcessor } from './retiler/tileProcessor';
-import { initLiveness } from './common/liveness';
+import { initLivenessProbe } from './common/liveness';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -17,13 +17,13 @@ void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
 
-    const server = initLiveness(container);
+    const livenessProbe = initLivenessProbe(container);
 
     const processor = container.resolve(TileProcessor);
     const queueProv = container.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
     await queueProv.consumeQueue(processor.processTile.bind(processor));
 
-    server.close();
+    livenessProbe.close();
   })
   .catch(async (error: ErrorWithExitCode) => {
     const errorLogger = depContainer?.isRegistered(SERVICES.LOGGER) === true ? depContainer.resolve<Logger>(SERVICES.LOGGER).error : console.error;
