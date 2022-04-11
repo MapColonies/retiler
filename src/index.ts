@@ -54,11 +54,13 @@ void registerExternalValues()
     const logger = container.resolve<Logger>(SERVICES.LOGGER);
 
     await queueProv.consumeQueue<TileWithMetadata>(async (tile, jobId) => {
-      logger.info({ msg: 'processing job', jobId });
+      const { parent, ...baseTile } = tile;
+
+      logger.info({ msg: 'started processing tile', jobId, tile: baseTile, parent });
 
       const [, duration] = await timerify(processor.processTile.bind(processor), tile);
 
-      logger.info({ msg: 'processing job completed successfully', jobId, duration });
+      logger.info({ msg: 'processing tile completed successfully', jobId, duration, tile: baseTile, parent });
     });
 
     server.close();
