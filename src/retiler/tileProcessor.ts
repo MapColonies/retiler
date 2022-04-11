@@ -18,6 +18,8 @@ export class TileProcessor {
 
     const tiles = await this.mapSplitter.splitMap({ ...tile, buffer: mapBuffer });
 
-    await this.tilesStorageProvider.storeTiles(tiles);
+    if (tiles.length > 0) {
+      await this.tilesStorageProvider.storeTiles(tiles);
+    }
   }
 }

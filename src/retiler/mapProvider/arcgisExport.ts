@@ -19,7 +19,7 @@ export class ArcgisExportMapProvider implements MapProvider {
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
     const { parent, ...baseTile } = tile;
-    this.logger.debug({ msg: `getting map from ${this.mapUrl}`, tile: baseTile, parent: tile.parent });
+    this.logger.debug({ msg: `fetching map from ${this.mapUrl}`, tile: baseTile, parent: tile.parent });
 
     const bbox = tileToBoundingBox(baseTile);
     const mapSizePerAxis = tile.metatile * TILE_SIZE;
@@ -37,7 +37,7 @@ export class ArcgisExportMapProvider implements MapProvider {
         { responseType: 'arraybuffer', params: requestParams }
       );
 
-      this.logger.debug({ msg: 'finished getting map', tile: baseTile, duration, parent: tile.parent });
+      this.logger.debug({ msg: 'finished fetching map', tile: baseTile, duration, parent: tile.parent });
 
       return response.data;
     } catch (error) {

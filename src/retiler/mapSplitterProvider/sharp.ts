@@ -19,7 +19,7 @@ export class SharpMapSplitter implements MapSplitterProvider {
     const promises: Promise<Buffer>[] = [];
     const tiles: Required<Tile>[] = [];
 
-    const pipeline = sharp(tile.buffer);
+    const pipeline = sharp(buffer);
     const splitsPerAxis = tile.metatile;
     pipeline.setMaxListeners(splitsPerAxis * splitsPerAxis + 1 + 1);
 

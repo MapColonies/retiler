@@ -2,7 +2,7 @@ import { TileWithBuffer, TileWithMetadata } from './types';
 
 export interface JobQueueProvider {
   activeQueueName: string;
-  consumeQueue: <T, R = void>(fn: (value: T) => Promise<R>) => Promise<void>;
+  consumeQueue: <T, R = void>(fn: (value: T, jobId?: string) => Promise<R>) => Promise<void>;
   startQueue: () => Promise<void>;
   stopQueue: () => Promise<void>;
 }

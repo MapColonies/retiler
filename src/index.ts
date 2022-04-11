@@ -12,6 +12,8 @@ import { ShutdownHandler } from './common/shutdownHandler';
 import { registerExternalValues } from './containerConfig';
 import { JobQueueProvider } from './retiler/interfaces';
 import { TileProcessor } from './retiler/tileProcessor';
+import { TileWithMetadata } from './retiler/types';
+import { timerify } from './common/util';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -49,8 +51,15 @@ void registerExternalValues()
 
     const processor = container.resolve(TileProcessor);
     const queueProv = container.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
+    const logger = container.resolve<Logger>(SERVICES.LOGGER);
 
-    await queueProv.consumeQueue(processor.processTile.bind(processor));
+    await queueProv.consumeQueue<TileWithMetadata>(async (tile, jobId) => {
+      logger.info({ msg: 'processing job', jobId });
+
+      const [, duration] = await timerify(processor.processTile.bind(processor), tile);
+
+      logger.info({ msg: 'processing job completed successfully', jobId, duration });
+    });
 
     server.close();
   })
