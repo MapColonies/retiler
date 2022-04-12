@@ -11,22 +11,20 @@
   "app": {
     "projectName": "default",
     "queueName": "QUEUE_NAME",
-    "jobsQueue": {
-      "pg-boss": {
-        "db": {
-          "host": "localhost",
-          "port": 5432,
-          "user": "postgres",
-          "password": "postgres",
-          "schema": "pgboss",
-          "enableSslAuth": false,
-          "sslPaths": {
-            "ca": "",
-            "key": "",
-            "cert": ""
-          },
-          "database": "pgboss"
+    "jobQueue": {
+      "pgBoss": {
+        "host": "localhost",
+        "port": 5432,
+        "user": "postgres",
+        "password": "postgres",
+        "schema": "pgboss",
+        "enableSslAuth": false,
+        "sslPaths": {
+          "ca": "",
+          "key": "",
+          "cert": ""
         },
+        "database": "pgboss",
         "maintenance": {
           "noSupervisor": true
         }
