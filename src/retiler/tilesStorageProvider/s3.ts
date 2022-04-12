@@ -5,7 +5,6 @@ import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
 import { inject, injectable } from 'tsyringe';
 import { S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../common/constants';
-import { S3Error } from '../../common/errors';
 import { timerify } from '../../common/util';
 import { TilesStorageProvider } from '../interfaces';
 import { TileWithBuffer } from '../types';
@@ -33,7 +32,7 @@ export class S3TilesStorage implements TilesStorageProvider {
       await this.s3Client.send(command);
     } catch (error) {
       const s3Error = error as Error;
-      throw new S3Error(`an error occurred during the put of key ${key} on bucket ${this.bucket}, ${s3Error.message}`);
+      throw new Error(`an error occurred during the put of key ${key} on bucket ${this.bucket}, ${s3Error.message}`);
     }
   }
 

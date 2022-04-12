@@ -3,8 +3,7 @@
 import 'reflect-metadata';
 import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
-import { JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
-import { ErrorWithExitCode } from './common/errors';
+import { ExitCodes, JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { registerExternalValues } from './containerConfig';
 import { JobQueueProvider } from './retiler/interfaces';
@@ -37,7 +36,7 @@ void registerExternalValues()
 
     livenessProbe.close();
   })
-  .catch(async (error: ErrorWithExitCode) => {
+  .catch(async (error) => {
     const errorLogger = depContainer?.isRegistered(SERVICES.LOGGER) === true ? depContainer.resolve<Logger>(SERVICES.LOGGER).error : console.error;
     errorLogger('an unexpected error occurred', error);
 
@@ -46,5 +45,5 @@ void registerExternalValues()
       await shutdownHandler.shutdown();
     }
 
-    process.exit(error.exitCode);
+    process.exit(ExitCodes.GENERAL_ERROR);
   });

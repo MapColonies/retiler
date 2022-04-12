@@ -34,7 +34,4 @@ export const SERVICES: Record<string, symbol> = {
 export const ExitCodes: Record<string, number> = {
   SUCCESS: 0,
   GENERAL_ERROR: 1,
-  S3_ERROR: 101,
-  REMOTE_SERVICE_RESPONSE_ERROR: 103,
-  REMOTE_SERVICE_UNAVAILABLE: 104,
 };
