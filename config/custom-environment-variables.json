@@ -46,11 +46,9 @@
           "cert": "DB_CERT_PATH"
         },
         "database": "DB_NAME",
-        "maintenance": {
-          "noSupervisor": {
-            "__name": "NO_SUPERVISOR",
-            "__format": "boolean"
-          }
+        "noSupervisor": {
+          "__name": "NO_SUPERVISOR",
+          "__format": "boolean"
         }
       }
     },

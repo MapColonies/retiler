@@ -25,9 +25,7 @@
           "cert": ""
         },
         "database": "pgboss",
-        "maintenance": {
-          "noSupervisor": true
-        }
+        "noSupervisor": true
       }
     },
     "map": {
