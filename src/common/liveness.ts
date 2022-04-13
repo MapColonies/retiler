@@ -8,7 +8,7 @@ import { ShutdownHandler } from './shutdownHandler';
 
 const stubHealthcheck = async (): Promise<void> => Promise.resolve();
 
-export const initLivenessProbe = (container: DependencyContainer): http.Server => {
+export const initLivenessProbe = (container: DependencyContainer): void => {
   const config = container.resolve<IConfig>(SERVICES.CONFIG);
   const serverConfig = config.get<IServerConfig>('server');
   const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
@@ -19,10 +19,11 @@ export const initLivenessProbe = (container: DependencyContainer): http.Server =
 
   const shutdownHandler = container.resolve(ShutdownHandler);
 
-  server.on('close', () => {
-    void shutdownHandler.shutdown();
-    server.unref();
-    process.exit();
+  shutdownHandler.addFunction(async () => {
+    return new Promise((resolve) => {
+      server.once('close', resolve);
+      server.close();
+    });
   });
 
   createTerminus(server, {
@@ -34,6 +35,4 @@ export const initLivenessProbe = (container: DependencyContainer): http.Server =
     const logger = container.resolve<Logger>(SERVICES.LOGGER);
     logger.debug(`liveness on port ${port}`);
   });
-
-  return server;
 };

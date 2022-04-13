@@ -18,6 +18,7 @@ module.exports = {
     '!**/controllers/**',
     '!**/routes/**',
     '!<rootDir>/src/*',
+    '!**/pgbossFactory.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
   reporters: [

@@ -9,6 +9,6 @@ export const isTileInBounds = (tile: Tile): boolean => {
   }
 };
 
-export const getFlippedY = (tile: Tile): number => {
-  return (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / (tile.metatile ?? 1)) * SCALE_FACTOR ** tile.z - tile.y - 1;
+export const getFlippedY = (tile: Required<Tile>): number => {
+  return (TILEGRID_WORLD_CRS84.numberOfMinLevelTilesY / tile.metatile) * SCALE_FACTOR ** tile.z - tile.y - 1;
 };
