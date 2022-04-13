@@ -28,12 +28,6 @@ jobs:
           prettier: true
           eslint_extensions: ts
 
-      - name: OpenAPI Lint Checks
-        uses: nwestfall/openapi-action@v1.0.2
-        with:
-         github_token: ${{ secrets.GITHUB_TOKEN }}
-         file: ./openapi3.yaml
-
   security:
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +62,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       minio:
-        image: minio:latest
+        image: minio/minio:latest
         env:
           AWS_ACCESS_KEY_ID: minioadmin
           AWS_SECRET_ACCESS_KEY: minioadmin
