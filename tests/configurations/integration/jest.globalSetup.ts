@@ -3,19 +3,19 @@ import { S3Client, S3ClientConfig, CreateBucketCommand, HeadBucketCommand } from
 import config from 'config';
 
 export default async (): Promise<void> => {
-    const s3Config = config.get<S3ClientConfig>('app.tilesStorage.s3ClientConfig');
-    const bucketName = config.get<string>('app.tilesStorage.s3Bucket');
+  const s3Config = config.get<S3ClientConfig>('app.tilesStorage.s3ClientConfig');
+  const bucketName = config.get<string>('app.tilesStorage.s3Bucket');
 
-    const s3Client = new S3Client(s3Config);
+  const s3Client = new S3Client(s3Config);
 
-    try {
-        const command = new HeadBucketCommand({ Bucket: bucketName });
-        await s3Client.send(command);
-    } catch (error) {
-        const s3Error = error as Error;
-        if (s3Error.name === 'NotFound') {
-            const command = new CreateBucketCommand({ Bucket: bucketName });
-            await s3Client.send(command);
-        }
+  try {
+    const command = new HeadBucketCommand({ Bucket: bucketName });
+    await s3Client.send(command);
+  } catch (error) {
+    const s3Error = error as Error;
+    if (s3Error.name === 'NotFound') {
+      const command = new CreateBucketCommand({ Bucket: bucketName });
+      await s3Client.send(command);
     }
+  }
 };
