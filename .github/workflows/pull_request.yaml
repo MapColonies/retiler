@@ -90,17 +90,6 @@ jobs:
         env:
           PGPASSWORD: 1234
 
-      - name: Create bucket
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip -q awscliv2.zip
-          ./aws/install
-          /usr/local/bin/aws s3api create-bucket --bucket testBucket --region us-east-1 --endpoint-url http://minio:9000
-        env:
-          AWS_ACCESS_KEY_ID: minioadmin
-          AWS_SECRET_ACCESS_KEY: minioadmin
-          AWS_DEFAULT_REGION: us-east-1
-
       - name: Set up Node.js
         uses: actions/setup-node@v1
         with:
@@ -111,6 +100,9 @@ jobs:
 
       - name: Run tests
         run: npm run test
+        env:
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
 
       - uses: actions/upload-artifact@v2
         with:
