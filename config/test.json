@@ -15,11 +15,11 @@
     },
     "tilesStorage": {
       "s3ClientConfig": {
-        "endpoint": "http://127.0.0.1:9000",
+        "endpoint": "http://minio:9000",
         "region": "us-east-1",
         "forcePathStyle": true
       },
-      "s3Bucket": "testBucket"
+      "s3Bucket": "test"
     }
   }
 }
