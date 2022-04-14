@@ -1,18 +1,25 @@
 {
-  "db": {
-    "host": "postgres",
-    "schema": "public",
-    "username": "postgres",
-    "password": "1234",
-    "database": "postgres",
-    "enableSslAuth": false
-  },
-  "tilesStorage": {
-    "s3ClientConfig": {
-      "endpoint": "http://127.0.0.1:9000",
-      "region": "us-east-1",
-      "forcePathStyle": true
+  "app": {
+    "queueName": "TEST_QUEUE",
+    "jobQueue": {
+      "pgBoss": {
+        "host": "postgres",
+        "port": 5432,
+        "user": "postgres",
+        "password": "1234",
+        "schema": "public",
+        "enableSslAuth": false,
+        "database": "postgres",
+        "noSupervisor": true
+      }
     },
-    "s3Bucket": "testBucket"
+    "tilesStorage": {
+      "s3ClientConfig": {
+        "endpoint": "http://127.0.0.1:9000",
+        "region": "us-east-1",
+        "forcePathStyle": true
+      },
+      "s3Bucket": "testBucket"
+    }
   }
 }
