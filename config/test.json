@@ -1,4 +1,12 @@
 {
+  "db": {
+    "host": "postgres",
+    "schema": "public",
+    "username": "postgres",
+    "password": "1234",
+    "database": "postgres",
+    "enableSslAuth": false
+  },
   "tilesStorage": {
     "s3ClientConfig": {
       "endpoint": "http://127.0.0.1:9000",
