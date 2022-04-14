@@ -14,6 +14,8 @@ let depContainer: DependencyContainer | undefined;
 
 void registerExternalValues()
   .then(async (container) => {
+    depContainer = container;
+
     initLivenessProbe(container);
 
     await runApp(container);
