@@ -9,13 +9,12 @@ export default async (): Promise<void> => {
   const s3Client = new S3Client(s3Config);
 
   try {
-    const command = new HeadBucketCommand({ Bucket: bucketName });
-    await s3Client.send(command);
+    await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
   } catch (error) {
     const s3Error = error as Error;
     if (s3Error.name === 'NotFound') {
-      const command = new CreateBucketCommand({ Bucket: bucketName });
-      await s3Client.send(command);
+      await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
     }
+    throw s3Error;
   }
 };
