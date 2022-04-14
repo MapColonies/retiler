@@ -24,13 +24,6 @@ module.exports = {
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/configurations/jest.setupAfterEnv.js'],
   globalSetup: '<rootDir>/tests/configurations/integration/jest.globalSetup.ts',
-  reporters: [
-    'default',
-    [
-      'jest-html-reporters',
-      { multipleReportsUnitePath: './reports', pageTitle: 'integration', publicPath: './reports', filename: 'integration.html' },
-    ],
-  ],
   moduleDirectories: ['node_modules', 'src'],
   preset: 'ts-jest',
   testEnvironment: 'node',
