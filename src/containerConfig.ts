@@ -18,6 +18,8 @@ import {
   SERVICE_NAME,
   TILES_STORAGE_PROVIDER,
   TILES_STORAGE_LAYOUT,
+  LIVENESS_PROBE_FACTORY,
+  CONSUME_AND_PROCESS_FACTORY,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -29,6 +31,8 @@ import { ArcgisExportMapProvider } from './retiler/mapProvider/arcgisExport';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
 import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
+import { livenessProbeFactory } from './common/liveness';
+import { consumeAndProcessFactory } from './app';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -76,6 +80,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           await provider.startQueue();
         },
       },
+      { token: LIVENESS_PROBE_FACTORY, provider: { useFactory: livenessProbeFactory } },
+      { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
       { token: SERVICES.HTTP_CLIENT, provider: { useValue: axiosClient } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },

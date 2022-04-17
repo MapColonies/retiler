@@ -3,12 +3,10 @@
 import 'reflect-metadata';
 import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
-import { SERVICES } from './common/constants';
+import { CONSUME_AND_PROCESS_FACTORY, LIVENESS_PROBE_FACTORY, SERVICES } from './common/constants';
 import { ErrorWithExitCode } from './common/errors';
 import { ShutdownHandler } from './common/shutdownHandler';
-import { runApp } from './app';
 import { registerExternalValues } from './containerConfig';
-import { initLivenessProbe } from './common/liveness';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -16,9 +14,10 @@ void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
 
-    initLivenessProbe(container);
+    container.resolve<void>(LIVENESS_PROBE_FACTORY);
 
-    await runApp(container);
+    const consumeAndProcess = container.resolve<() => Promise<void>>(CONSUME_AND_PROCESS_FACTORY);
+    await consumeAndProcess();
 
     const shutdownHandler = container.resolve(ShutdownHandler);
     await shutdownHandler.shutdown();

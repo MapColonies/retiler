@@ -8,7 +8,7 @@ import nock from 'nock';
 import httpStatusCodes from 'http-status-codes';
 import { S3Client } from '@aws-sdk/client-s3';
 import { registerExternalValues } from '../../src/containerConfig';
-import { runApp } from '../../src/app';
+import { consumeAndProcessFactory } from '../../src/app';
 import { ShutdownHandler } from '../../src/common/shutdownHandler';
 import { MAP_URL, QUEUE_NAME, S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../src/common/constants';
 
@@ -54,7 +54,7 @@ describe('retiler', function () {
       const queueName = container.resolve<string>(QUEUE_NAME);
       const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job = await pgBoss.getJobById(jobId as string);
       expect(job).toHaveProperty('state', 'completed');
@@ -80,7 +80,7 @@ describe('retiler', function () {
       const jobId2 = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } });
       const jobId3 = await pgBoss.send({ name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job1 = await pgBoss.getJobById(jobId1 as string);
       const job2 = await pgBoss.getJobById(jobId2 as string);
@@ -103,7 +103,7 @@ describe('retiler', function () {
       const jobId2 = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } });
       const jobId3 = await pgBoss.send({ name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job1 = await pgBoss.getJobById(jobId1 as string);
       const job2 = await pgBoss.getJobById(jobId2 as string);
@@ -122,7 +122,7 @@ describe('retiler', function () {
       const queueName = container.resolve<string>(QUEUE_NAME);
 
       const queueSizeBefore = await pgBoss.getQueueSize(queueName);
-      const promise = runApp(container);
+      const promise = consumeAndProcessFactory(container)();
       const queueSizeAfter = await pgBoss.getQueueSize(queueName);
 
       expect(queueSizeBefore).toBe(0);
@@ -137,7 +137,7 @@ describe('retiler', function () {
       const queueName = container.resolve<string>(QUEUE_NAME);
       const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job = await pgBoss.getJobById(jobId as string);
       expect(job).toHaveProperty('state', 'failed');
@@ -152,7 +152,7 @@ describe('retiler', function () {
       const queueName = container.resolve<string>(QUEUE_NAME);
       const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job = await pgBoss.getJobById(jobId as string);
 
@@ -169,7 +169,7 @@ describe('retiler', function () {
       const queueName = container.resolve<string>(QUEUE_NAME);
       const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job = await pgBoss.getJobById(jobId as string);
 
@@ -192,7 +192,7 @@ describe('retiler', function () {
       const s3Client = container.resolve<S3Client>(SERVICES.S3);
       jest.spyOn(s3Client, 'send').mockRejectedValue(new Error(errorMessage) as never);
 
-      await runApp(container);
+      await consumeAndProcessFactory(container)();
 
       const job = await pgBoss.getJobById(jobId as string);
 
@@ -210,7 +210,7 @@ describe('retiler', function () {
       const fetchError = new Error('fetch error');
       jest.spyOn(pgBoss, 'fetch').mockRejectedValue(fetchError);
 
-      const promise = runApp(container);
+      const promise = consumeAndProcessFactory(container)();
       await expect(promise).rejects.toThrow(fetchError);
     });
   });

@@ -1,7 +1,7 @@
 import { readPackageJsonSync } from '@map-colonies/read-pkg';
 
 export const SERVICE_NAME = readPackageJsonSync().name ?? 'unknown_service';
-export const DEFAULT_SERVER_PORT = 8080;
+export const DEFAULT_LIVENESS_PORT = 8080;
 
 export const IGNORED_OUTGOING_TRACE_ROUTES = [/^.*\/v1\/metrics.*$/];
 export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/];
@@ -11,6 +11,9 @@ export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
 export const MAP_PROVIDER = Symbol('MapProvider');
 export const MAP_SPLITTER_PROVIDER = Symbol('MapSplitterProvider');
 export const TILES_STORAGE_PROVIDER = Symbol('TilesStorageProvider');
+
+export const CONSUME_AND_PROCESS_FACTORY = Symbol('ConsumeAndProcessFactory');
+export const LIVENESS_PROBE_FACTORY = Symbol('LivenessProbeFactory');
 
 export const QUEUE_NAME = Symbol('QueueName');
 

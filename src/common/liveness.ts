@@ -1,17 +1,17 @@
 import http from 'http';
 import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
-import { DependencyContainer } from 'tsyringe';
+import { FactoryFunction } from 'tsyringe';
 import { IConfig, IServerConfig } from './interfaces';
-import { DEFAULT_SERVER_PORT, SERVICES } from './constants';
+import { DEFAULT_LIVENESS_PORT, SERVICES } from './constants';
 import { ShutdownHandler } from './shutdownHandler';
 
 const stubHealthcheck = async (): Promise<void> => Promise.resolve();
 
-export const initLivenessProbe = (container: DependencyContainer): void => {
+export const livenessProbeFactory: FactoryFunction<void> = (container) => {
   const config = container.resolve<IConfig>(SERVICES.CONFIG);
   const serverConfig = config.get<IServerConfig>('server');
-  const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
+  const port: number = parseInt(serverConfig.port) || DEFAULT_LIVENESS_PORT;
 
   const server = http.createServer((request, response) => {
     response.end(`running at http://localhost:${port}`);
