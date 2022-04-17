@@ -7,11 +7,25 @@
 ![snyk](https://img.shields.io/snyk/vulnerabilities/github/MapColonies/retiler?style=for-the-badge)
 
 ----------------------------------
-retiler is a service intended to run as a [k8s job](https://kubernetes.io/docs/concepts/workloads/controllers/job/).
-
 Tiles for rendering will be consumed from a job queue, currently using [pgboss](https://github.com/timgit/pg-boss).
-Each tile holds a `metatile` value and `ZXY` postition. the tile image will be fetched from an `ArcGIS` service and will be splitted into 256x256 pixel tiles in PNG format according to position and metatile value.
-finally the tiles will be stored on s3 storage.
+
+Each tile holds a `metatile` value and `ZXY` postition. typically a consumed tile will be a square metatile of 8x8 normal tiles (64 tiles), meaning covering a square area of 2048x2048 pixels.
+
+The initial metatile image will be requested for rendering from an `ArcGIS` service using the [export map operation](http://sampleserver1.arcgisonline.com/arcgis/sdk/rest/export.html), the request of a large area for rendering e.g. 2048x2048 pixels is more efficient than 64 requests of 256x256.
+
+The fetched metatile image will be splitted into 256x256 pixels tiles in a PNG format and finally will be stored on s3 storage.
+
+## How it works
+```mermaid
+flowchart TD
+    A[Start] --> B{IsQueueEmpty}
+    B -- yes --> G[Finish]
+    B -- no --> C([Fetch Tile])
+    C -->D([Get Map])
+    D -->E([Split Map])
+    E -->F([Store Tiles])
+    F --> B
+```
 
 ## config
 `app.queueName`: the job queue name to consume tiles from
