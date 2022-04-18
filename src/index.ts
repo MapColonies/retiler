@@ -3,8 +3,7 @@
 import 'reflect-metadata';
 import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
-import { CONSUME_AND_PROCESS_FACTORY, LIVENESS_PROBE_FACTORY, SERVICES } from './common/constants';
-import { ErrorWithExitCode } from './common/errors';
+import { CONSUME_AND_PROCESS_FACTORY, ExitCodes, LIVENESS_PROBE_FACTORY, SERVICES } from './common/constants';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { registerExternalValues } from './containerConfig';
 
@@ -22,7 +21,7 @@ void registerExternalValues()
     const shutdownHandler = container.resolve(ShutdownHandler);
     await shutdownHandler.shutdown();
   })
-  .catch(async (error: ErrorWithExitCode) => {
+  .catch(async (error) => {
     const errorLogger = depContainer?.isRegistered(SERVICES.LOGGER) === true ? depContainer.resolve<Logger>(SERVICES.LOGGER).error : console.error;
     errorLogger('an unexpected error occurred', error);
 
@@ -31,5 +30,5 @@ void registerExternalValues()
       await shutdownHandler.shutdown();
     }
 
-    process.exit(error.exitCode);
+    process.exit(ExitCodes.GENERAL_ERROR);
   });

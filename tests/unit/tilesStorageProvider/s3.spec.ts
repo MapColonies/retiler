@@ -1,6 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import jsLogger from '@map-colonies/js-logger';
-import { S3Error } from '../../../src/common/errors';
 import { S3TilesStorage } from '../../../src/retiler/tilesStorageProvider/s3';
 
 jest.mock('@aws-sdk/client-s3');
@@ -34,8 +33,9 @@ describe('S3TilesStorage', () => {
       await expect(promise).resolves.not.toThrow();
     });
 
-    it('should throw an S3Error if the request failed', async function () {
-      const error = new Error('request failure error');
+    it('should throw an error if the request failed', async function () {
+      const errorMessage = 'request failure error';
+      const error = new Error(errorMessage);
       mockedS3Client.send.mockRejectedValue(error as never);
 
       const promise = storage.storeTile({
@@ -46,7 +46,7 @@ describe('S3TilesStorage', () => {
         metatile: 1,
       });
 
-      await expect(promise).rejects.toThrow(S3Error);
+      await expect(promise).rejects.toThrow(errorMessage);
     });
   });
 
@@ -65,8 +65,9 @@ describe('S3TilesStorage', () => {
       await expect(promise).resolves.not.toThrow();
     });
 
-    it('should throw an S3Error if one of the requests had failed', async function () {
-      const error = new Error('request failure error');
+    it('should throw an error if one of the requests had failed', async function () {
+      const errorMessage = 'request failure error';
+      const error = new Error(errorMessage);
       mockedS3Client.send.mockRejectedValueOnce(error as never);
 
       const buffer = Buffer.from('test');
@@ -77,7 +78,7 @@ describe('S3TilesStorage', () => {
         { ...tile, buffer },
       ]);
 
-      await expect(promise).rejects.toThrow(S3Error);
+      await expect(promise).rejects.toThrow(errorMessage);
     });
   });
 });

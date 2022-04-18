@@ -1,4 +1,3 @@
-import { Readable } from 'stream';
 import { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { tileToBoundingBox } from '@map-colonies/tile-calc';
 import { Logger } from '@map-colonies/js-logger';
@@ -40,8 +39,7 @@ export class ArcgisExportMapProvider implements MapProvider {
       this.logger.debug({ msg: 'finished fetching map', tile: baseTile, duration, parent: tile.parent });
       return response.data;
     } catch (error) {
-      const axiosError = error as AxiosError<Readable>;
-      this.logger.debug(axiosError.toJSON());
+      const axiosError = error as AxiosError<Buffer>;
       throw axiosError;
     }
   }
