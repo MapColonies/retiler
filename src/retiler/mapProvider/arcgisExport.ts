@@ -38,7 +38,6 @@ export class ArcgisExportMapProvider implements MapProvider {
       );
 
       this.logger.debug({ msg: 'finished fetching map', tile: baseTile, duration, parent: tile.parent });
-
       return response.data;
     } catch (error) {
       const axiosError = error as AxiosError<Readable>;

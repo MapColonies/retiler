@@ -18,12 +18,9 @@ module.exports = {
     '!**/controllers/**',
     '!**/routes/**',
     '!<rootDir>/src/*',
+    '!**/pgbossFactory.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
-  reporters: [
-    'default',
-    ['jest-html-reporters', { multipleReportsUnitePath: './reports', pageTitle: 'unit', publicPath: './reports', filename: 'unit.html' }],
-  ],
   rootDir: '../../../.',
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/matchers.js', '<rootDir>/tests/configurations/jest.setupAfterEnv.js'],

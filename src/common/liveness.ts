@@ -1,17 +1,17 @@
 import http from 'http';
 import { createTerminus } from '@godaddy/terminus';
 import { Logger } from '@map-colonies/js-logger';
-import { DependencyContainer } from 'tsyringe';
+import { FactoryFunction } from 'tsyringe';
 import { IConfig, IServerConfig } from './interfaces';
-import { DEFAULT_SERVER_PORT, SERVICES } from './constants';
+import { DEFAULT_LIVENESS_PORT, SERVICES } from './constants';
 import { ShutdownHandler } from './shutdownHandler';
 
 const stubHealthcheck = async (): Promise<void> => Promise.resolve();
 
-export const initLivenessProbe = (container: DependencyContainer): http.Server => {
+export const livenessProbeFactory: FactoryFunction<void> = (container) => {
   const config = container.resolve<IConfig>(SERVICES.CONFIG);
   const serverConfig = config.get<IServerConfig>('server');
-  const port: number = parseInt(serverConfig.port) || DEFAULT_SERVER_PORT;
+  const port: number = parseInt(serverConfig.port) || DEFAULT_LIVENESS_PORT;
 
   const server = http.createServer((request, response) => {
     response.end(`running at http://localhost:${port}`);
@@ -19,10 +19,11 @@ export const initLivenessProbe = (container: DependencyContainer): http.Server =
 
   const shutdownHandler = container.resolve(ShutdownHandler);
 
-  server.on('close', () => {
-    void shutdownHandler.shutdown();
-    server.unref();
-    process.exit();
+  shutdownHandler.addFunction(async () => {
+    return new Promise((resolve) => {
+      server.once('close', resolve);
+      server.close();
+    });
   });
 
   createTerminus(server, {
@@ -34,6 +35,4 @@ export const initLivenessProbe = (container: DependencyContainer): http.Server =
     const logger = container.resolve<Logger>(SERVICES.LOGGER);
     logger.debug(`liveness on port ${port}`);
   });
-
-  return server;
 };

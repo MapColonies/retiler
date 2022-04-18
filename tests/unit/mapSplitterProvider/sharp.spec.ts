@@ -78,7 +78,7 @@ describe('SharpMapSplitter', () => {
 
     it('should split 256x256 image into only 2 tiles which are not out of bounds on zoom level 1, on every metatile value larger than 1', async function () {
       const metatileValue = faker.datatype.number({ min: 2, max: 22 });
-      const buffer = await readFile('tests/256x256.png');
+      const buffer = await readFile('tests/512x512.png');
 
       const tiles = await splitter.splitMap({ z: 0, x: 0, y: 0, metatile: metatileValue, buffer });
 
