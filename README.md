@@ -7,79 +7,96 @@
 ![snyk](https://img.shields.io/snyk/vulnerabilities/github/MapColonies/retiler?style=for-the-badge)
 
 ----------------------------------
-retiler is a thin service that supposed to run as a [k8s job](https://kubernetes.io/docs/concepts/workloads/controllers/job/). It will retile a web map service and store the output tiles in a storage.
+Tiles for rendering will be consumed from a job queue, currently using [pgboss](https://github.com/timgit/pg-boss).
 
+Each tile holds a `metatile` value and `ZXY` postition. typically a consumed tile will be a square metatile of 8x8 normal tiles (64 tiles), meaning covering a square area of 2048x2048 pixels.
 
-## Introduction
+The initial metatile image will be requested for rendering from an `ArcGIS` service using the [export map operation](http://sampleserver1.arcgisonline.com/arcgis/sdk/rest/export.html), the request of a large area for rendering e.g. 2048x2048 pixels is more efficient than 64 requests of 256x256.
 
-retiler is build from four main parts:
-- **jobs queue provider** - a queue of jobs that hold tiles
-- **map provider** - fetches a web map based on the tile (metatile)
-- **map splitter provider** - splits the web map to single tiles e.g. `metatile=1`
-- **tiles storage provider** - stores tiles to a storage
+The fetched metatile image will be splitted into 256x256 pixels tiles in a PNG format and finally will be stored on s3 storage.
 
-## Writing Retiler Providers
+## How it works
+```mermaid
+flowchart TD
+    A[Start] --> B{IsQueueEmpty}
+    B -- yes --> G[Finish]
+    B -- no --> C([Fetch Tile])
+    C -->D([Get Map])
+    D -->E([Split Map])
+    E -->F([Store Tiles])
+    F --> B
+```
 
-Implementation details for all providers could be found [here](./src/retiler/interfaces.ts). The sections bellow provide a short overview of the providers used by retiler.
+## config
+`app.queueName`: the job queue name to consume tiles from
 
-### jobs queue provider
+`app.jobQueue.noSupervisor`: flag for maintenance and monitoring operations on the job queue. defaults to true (meaning no supervision)
 
-this provider should implement the functions bellow
-- `get()` get a job from the queue
-- `isEmpty()` check if the queue is empty
-- `complete()` mark the job as completed
-- `fail()` mark the job as failed
+`map.url`: the url of the `ArcGIS` service to fetch the map from
 
-retiler checks when the queue is empty using `isEmpty()` and if so it successfully terminates the k8s job
+`map.client.timeoutMs`: the timeout in ms for a fetch map request. defaults to 60000
 
-### map provider
+`tilesStorage.s3Bucket`: the bucket name for tiles storage
 
-this provider should implement the functions bellow
-- `getMapStream()` get a readable stream of the map image payload
-
-this provider may implement the functions bellow
-- *`getMap()`* get an http response with a buffer of the map image payload
-
-### map splitter provider
-
-this provider should implement the functions bellow
-- `generateSplitPipeline()` creates a Duplex stream that will tile the map image
-
-### tiles storage layout
-
-`tilesStorage.layout.format`: the format of the tile's key in the storage bucket, the z, x, y values of the tile can be retrieved to the key, e.g. `prefix/{z}/{x}/{y}/sufix.png` formated to the tile
+`tilesStorage.layout.format`: the format of the tile's key in the storage bucket, the z, x, y values of the tile can be retrieved to the key. defaults to `prefix/{z}/{x}/{y}.png`
+e.g. `prefix/{z}/{x}/{y}.png` formated to the tile
 ```json
 { z: 3, x: 10, y: 4 }
 ```
-will result in the key: "prefix/3/10/4/sufix.png"
+will result in the key: "prefix/3/10/4.png"
 
-`tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on.
+`tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on. defaults to true
 
-## Installation & Usage
+## Run Locally
 
-After retiler is cloned, currently, this [file](./src/containerConfig.ts) must be updated to inject the needed providers. Then install the relevant npm packages. Finally, add or edit the relevant env variables to support the selection of the providers.
-
-### Locally
-
-Use locally by cloning from GitHub
+Clone the project
 
 ```bash
+
 git clone https://github.com/MapColonies/retiler.git
-cd retiler
-npm install
-npm run start
+
 ```
 
-### k8s
+Go to the project directory
 
-Build an image to run as a k8s job
+```bash
 
-```docker
-docker build --rm -t retiler:<TAG> .
+cd retiler
+
+```
+
+Install dependencies
+
+```bash
+
+npm install
+
+```
+
+Start the server
+
+```bash
+
+npm start
+
 ```
 
 ## Running Tests
 
+To run tests, run the following command
+
 ```bash
+
 npm run test
+
+```
+
+To only run unit tests:
+```bash
+npm run test:unit
+```
+
+To only run integration tests:
+```bash
+npm run test:integration
 ```
