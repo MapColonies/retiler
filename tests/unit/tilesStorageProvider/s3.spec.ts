@@ -34,7 +34,8 @@ describe('S3TilesStorage', () => {
     });
 
     it('should throw an error if the request failed', async function () {
-      const error = new Error('request failure error');
+      const errorMessage = 'request failure error'
+      const error = new Error(errorMessage);
       mockedS3Client.send.mockRejectedValue(error as never);
 
       const promise = storage.storeTile({
@@ -45,7 +46,7 @@ describe('S3TilesStorage', () => {
         metatile: 1,
       });
 
-      await expect(promise).rejects.toThrow(Error);
+      await expect(promise).rejects.toThrow(errorMessage);
     });
   });
 
@@ -65,7 +66,8 @@ describe('S3TilesStorage', () => {
     });
 
     it('should throw an error if one of the requests had failed', async function () {
-      const error = new Error('request failure error');
+      const errorMessage = 'request failure error';
+      const error = new Error(errorMessage);
       mockedS3Client.send.mockRejectedValueOnce(error as never);
 
       const buffer = Buffer.from('test');
@@ -76,7 +78,7 @@ describe('S3TilesStorage', () => {
         { ...tile, buffer },
       ]);
 
-      await expect(promise).rejects.toThrow(error);
+      await expect(promise).rejects.toThrowError(errorMessage);
     });
   });
 });
