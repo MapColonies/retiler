@@ -45,7 +45,7 @@ export class S3TilesStorage implements TilesStorageProvider {
     this.logger.debug({ msg: 'finished storing tiles', duration, parent });
   }
 
-  private determineKey(tile: Tile): string {
+  private determineKey(tile: Required<Tile>): string {
     if (this.storageLayout.shouldFlipY) {
       tile.y = getFlippedY(tile);
     }

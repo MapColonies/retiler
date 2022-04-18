@@ -3,14 +3,9 @@
 import 'reflect-metadata';
 import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
-import { ExitCodes, JOB_QUEUE_PROVIDER, SERVICES } from './common/constants';
+import { CONSUME_AND_PROCESS_FACTORY, ExitCodes, LIVENESS_PROBE_FACTORY, SERVICES } from './common/constants';
 import { ShutdownHandler } from './common/shutdownHandler';
 import { registerExternalValues } from './containerConfig';
-import { JobQueueProvider } from './retiler/interfaces';
-import { TileProcessor } from './retiler/tileProcessor';
-import { TileWithMetadata } from './retiler/types';
-import { timerify } from './common/util';
-import { initLivenessProbe } from './common/liveness';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -18,23 +13,13 @@ void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
 
-    const livenessProbe = initLivenessProbe(container);
+    container.resolve<void>(LIVENESS_PROBE_FACTORY);
 
-    const processor = container.resolve(TileProcessor);
-    const queueProv = container.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
-    const logger = container.resolve<Logger>(SERVICES.LOGGER);
+    const consumeAndProcess = container.resolve<() => Promise<void>>(CONSUME_AND_PROCESS_FACTORY);
+    await consumeAndProcess();
 
-    await queueProv.consumeQueue<TileWithMetadata>(async (tile, jobId) => {
-      const { parent, ...baseTile } = tile;
-
-      logger.info({ msg: 'started processing tile', jobId, tile: baseTile, parent });
-
-      const [, duration] = await timerify(processor.processTile.bind(processor), tile);
-
-      logger.info({ msg: 'processing tile completed successfully', jobId, duration, tile: baseTile, parent });
-    });
-
-    livenessProbe.close();
+    const shutdownHandler = container.resolve(ShutdownHandler);
+    await shutdownHandler.shutdown();
   })
   .catch(async (error) => {
     const errorLogger = depContainer?.isRegistered(SERVICES.LOGGER) === true ? depContainer.resolve<Logger>(SERVICES.LOGGER).error : console.error;
