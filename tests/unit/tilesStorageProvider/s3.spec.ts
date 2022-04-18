@@ -34,7 +34,7 @@ describe('S3TilesStorage', () => {
     });
 
     it('should throw an error if the request failed', async function () {
-      const errorMessage = 'request failure error'
+      const errorMessage = 'request failure error';
       const error = new Error(errorMessage);
       mockedS3Client.send.mockRejectedValue(error as never);
 
