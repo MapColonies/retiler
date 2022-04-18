@@ -78,7 +78,7 @@ describe('S3TilesStorage', () => {
         { ...tile, buffer },
       ]);
 
-      await expect(promise).rejects.toThrowError(errorMessage);
+      await expect(promise).rejects.toThrow(errorMessage);
     });
   });
 });
