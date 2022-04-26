@@ -14,7 +14,7 @@ export class ArcgisExportMapProvider implements MapProvider {
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(MAP_URL) private readonly mapUrl: string,
-    @inject(MAP_FORMAT) private readonly mapFormat: string,
+    @inject(MAP_FORMAT) private readonly mapFormat: string
   ) {}
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
