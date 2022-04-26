@@ -30,6 +30,7 @@
     },
     "map": {
       "url": "https://some-domain.com/api/",
+      "format": "png32", 
       "client": {
         "timeoutMs": 60000
       }

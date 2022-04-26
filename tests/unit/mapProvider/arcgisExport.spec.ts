@@ -11,7 +11,7 @@ describe('arcgisExport', () => {
 
     beforeEach(function () {
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
-      arcgisMap = new ArcgisExportMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com');
+      arcgisMap = new ArcgisExportMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'png32');
     });
 
     afterEach(function () {

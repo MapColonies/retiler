@@ -18,6 +18,7 @@ export const LIVENESS_PROBE_FACTORY = Symbol('LivenessProbeFactory');
 export const QUEUE_NAME = Symbol('QueueName');
 
 export const MAP_URL = Symbol('MapURL');
+export const MAP_FORMAT = Symbol('MapFormat');
 
 export const S3_BUCKET = Symbol('S3Bucket');
 export const TILES_STORAGE_LAYOUT = Symbol('TilesStorageLayout');

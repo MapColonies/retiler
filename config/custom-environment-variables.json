@@ -54,6 +54,7 @@
     },
     "map": {
       "url": "MAP_URL",
+      "format": "MAP_FORMAT",
       "client": {
         "timeoutMs": {
           "__name": "MAP_CLIENT_TIMEOUT_MS",

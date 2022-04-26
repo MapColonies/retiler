@@ -20,6 +20,7 @@ import {
   TILES_STORAGE_LAYOUT,
   LIVENESS_PROBE_FACTORY,
   CONSUME_AND_PROCESS_FACTORY,
+  MAP_FORMAT,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -85,6 +86,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
       { token: SERVICES.HTTP_CLIENT, provider: { useValue: axiosClient } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
+      { token: MAP_FORMAT, provider: { useValue: config.get<string>('app.map.format') } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
       { token: TILES_STORAGE_LAYOUT, provider: { useValue: config.get<TileStoragLayout>('app.tilesStorage.layout') } },
       { token: MAP_PROVIDER, provider: { useClass: ArcgisExportMapProvider } },

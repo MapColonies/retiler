@@ -2,7 +2,7 @@ import { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'ax
 import { tileToBoundingBox } from '@map-colonies/tile-calc';
 import { Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
-import { MAP_URL, SERVICES, TILE_SIZE } from '../../common/constants';
+import { MAP_FORMAT, MAP_URL, SERVICES, TILE_SIZE } from '../../common/constants';
 import { MapProvider } from '../interfaces';
 import { timerify } from '../../common/util';
 import { TileWithMetadata } from '../types';
@@ -13,7 +13,8 @@ export class ArcgisExportMapProvider implements MapProvider {
   public constructor(
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(MAP_URL) private readonly mapUrl: string
+    @inject(MAP_URL) private readonly mapUrl: string,
+    @inject(MAP_FORMAT) private readonly mapFormat: string,
   ) {}
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
@@ -25,6 +26,7 @@ export class ArcgisExportMapProvider implements MapProvider {
 
     const requestParams = {
       ...ARCGIS_MAP_PARAMS,
+      format: this.mapFormat,
       bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
       size: `${mapSizePerAxis},${mapSizePerAxis}`,
     };
