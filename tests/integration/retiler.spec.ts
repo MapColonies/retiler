@@ -58,7 +58,7 @@ describe('retiler', function () {
 
       const job = await pgBoss.getJobById(jobId as string);
       console.log(job);
-      
+
       expect(job).toHaveProperty('state', 'completed');
 
       expect(s3SendSpy.mock.calls).toHaveLength(4);

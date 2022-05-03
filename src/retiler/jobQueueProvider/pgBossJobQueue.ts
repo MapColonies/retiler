@@ -29,7 +29,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     await this.pgBoss.stop();
   }
 
-  public async consumeQueue<T, R = void>(fn: (value: T, jobId?: string, ) => Promise<R>, parallelism = 1): Promise<void> {
+  public async consumeQueue<T, R = void>(fn: (value: T, jobId?: string) => Promise<R>, parallelism = 1): Promise<void> {
     this.logger.info('started consuming queue');
     let jobs: Job<T>[] = [];
     for await (const job of this.getJobsIterator<T>()) {
