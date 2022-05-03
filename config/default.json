@@ -11,6 +11,7 @@
   "app": {
     "projectName": "default",
     "queueName": "QUEUE_NAME",
+    "parallelism": 5,
     "jobQueue": {
       "pgBoss": {
         "host": "localhost",

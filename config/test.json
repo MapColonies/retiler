@@ -1,5 +1,6 @@
 {
   "app": {
+    "parallelism": 2,
     "queueName": "TEST_QUEUE",
     "jobQueue": {
       "pgBoss": {
