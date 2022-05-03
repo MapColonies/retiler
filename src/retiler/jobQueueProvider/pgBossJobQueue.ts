@@ -35,14 +35,14 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     for await (const job of this.getJobsIterator<T>()) {
       jobs.push(job);
       if (jobs.length >= parallelism) {
-        this.logger.debug({ msg: `processing batch of ${jobs.length} jobs` });
+        this.logger.debug({ msg: 'processing a batch of jobs', count: jobs.length });
         await Promise.all(jobs.map(async (job) => this.handleJob(job, fn)));
         jobs = [];
       }
     }
 
     if (jobs.length > 0) {
-      this.logger.debug({ msg: `processing remaining batch of ${jobs.length} jobs` });
+      this.logger.debug({ msg: 'processing the remaining batch of  jobs', count: jobs.length });
       await Promise.all(jobs.map(async (job) => this.handleJob(job, fn)));
     }
 
