@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/MapColonies/retiler/compare/v1.0.0...v1.1.0) (2022-05-03)
+
+
+### Features
+
+* added option to run multiple jobs in parallal ([93061a8](https://github.com/MapColonies/retiler/commit/93061a88643eea04fde48b7aa31ed7e824957bb7))
+* added option to run multiple jobs in parallel ([#16](https://github.com/MapColonies/retiler/issues/16)) ([03308e1](https://github.com/MapColonies/retiler/commit/03308e14f383b40dc51250ef22a208047c68722e))
+
+
+### Bug Fixes
+
+* removed console log ([866f435](https://github.com/MapColonies/retiler/commit/866f435eca8ed717b36b49159a8a9bbf9a0af11e))
+* removed redundant whitespace ([9e7c767](https://github.com/MapColonies/retiler/commit/9e7c7674be8d840bc295439fcce8a648a27a096a))
+
 ## 1.0.0 (2022-04-27)
 
 
