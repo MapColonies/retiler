@@ -21,5 +21,5 @@ export type PgBossConfig = {
 
 export const pgBossFactory = async (bossConfig: PgBossConfig): Promise<PgBoss> => {
   const databaseOptions = await createDatabaseOptions(bossConfig);
-  return new PgBoss({ ...bossConfig, ...databaseOptions });
+  return new PgBoss({ ...bossConfig, ...databaseOptions, noScheduling: true });
 };

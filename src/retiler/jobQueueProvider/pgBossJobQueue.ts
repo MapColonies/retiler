@@ -29,27 +29,41 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     await this.pgBoss.stop();
   }
 
-  public async consumeQueue<T, R = void>(fn: (value: T, jobId?: string) => Promise<R>): Promise<void> {
+  public async consumeQueue<T, R = void>(fn: (value: T, jobId?: string) => Promise<R>, parallelism = 1): Promise<void> {
     this.logger.info('started consuming queue');
-
+    let jobs: Job<T>[] = [];
     for await (const job of this.getJobsIterator<T>()) {
-      try {
-        this.logger.debug({ msg: 'job fetched from queue', jobId: job.id });
-
-        await fn(job.data, job.id);
-
-        this.logger.debug({ msg: 'job completed successfully', jobId: job.id });
-
-        await this.pgBoss.complete(job.id);
-      } catch (err) {
-        const error = err as Error;
-        this.logger.error({ err: error, jobId: job.id });
-
-        await this.pgBoss.fail(job.id, error);
+      jobs.push(job);
+      if (jobs.length >= parallelism) {
+        this.logger.debug({ msg: 'processing a batch of jobs', count: jobs.length });
+        await Promise.all(jobs.map(async (job) => this.handleJob(job, fn)));
+        jobs = [];
       }
     }
 
+    if (jobs.length > 0) {
+      this.logger.debug({ msg: 'processing the remaining batch of jobs', count: jobs.length });
+      await Promise.all(jobs.map(async (job) => this.handleJob(job, fn)));
+    }
+
     this.logger.info(`queue is empty`);
+  }
+
+  private async handleJob<T, R = void>(job: Job<T>, fn: (value: T, jobId?: string) => Promise<R>): Promise<void> {
+    try {
+      this.logger.debug({ msg: 'job fetched from queue', jobId: job.id });
+
+      await fn(job.data, job.id);
+
+      this.logger.debug({ msg: 'job completed successfully', jobId: job.id });
+
+      await this.pgBoss.complete(job.id);
+    } catch (err) {
+      const error = err as Error;
+      this.logger.error({ err: error, jobId: job.id });
+
+      await this.pgBoss.fail(job.id, error);
+    }
   }
 
   private async *getJobsIterator<T>(): AsyncGenerator<Job<T>> {

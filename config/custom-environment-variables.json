@@ -26,6 +26,10 @@
   "app": {
     "projectName": "APP_PROJECT_NAME",
     "queueName": "QUEUE_NAME",
+    "parallelism": {
+      "__name": "APP_JOB_PARALLELISM",
+      "__format": "number"
+    },
     "jobQueue": {
       "pgBoss": {
         "host": "DB_HOST",
