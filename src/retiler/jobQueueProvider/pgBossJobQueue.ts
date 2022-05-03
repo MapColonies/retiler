@@ -42,7 +42,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     }
 
     if (jobs.length > 0) {
-      this.logger.debug({ msg: 'processing the remaining batch of  jobs', count: jobs.length });
+      this.logger.debug({ msg: 'processing the remaining batch of jobs', count: jobs.length });
       await Promise.all(jobs.map(async (job) => this.handleJob(job, fn)));
     }
 
