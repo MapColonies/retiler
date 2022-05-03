@@ -57,7 +57,6 @@ describe('retiler', function () {
       await consumeAndProcessFactory(container)();
 
       const job = await pgBoss.getJobById(jobId as string);
-      console.log(job);
 
       expect(job).toHaveProperty('state', 'completed');
 
