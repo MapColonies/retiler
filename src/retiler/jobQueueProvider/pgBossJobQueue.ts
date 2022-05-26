@@ -19,10 +19,11 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
   public async startQueue(): Promise<void> {
     this.pgBoss.on('error', (err) => {
-      this.logger.error(err, 'pg-boss error');
+      this.logger.error({ err, msg: 'pgboss error' });
     });
 
     await this.pgBoss.start();
+    this.logger.debug({ msg: 'pgboss started' });
   }
 
   public async stopQueue(): Promise<void> {
@@ -30,7 +31,8 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   }
 
   public async consumeQueue<T, R = void>(fn: (value: T, jobId?: string) => Promise<R>, parallelism = 1): Promise<void> {
-    this.logger.info('started consuming queue');
+    this.logger.info({ msg: 'started consuming queue', parallelism });
+
     let jobs: Job<T>[] = [];
     for await (const job of this.getJobsIterator<T>()) {
       jobs.push(job);
@@ -46,7 +48,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       await Promise.all(jobs.map(async (job) => this.handleJob(job, fn)));
     }
 
-    this.logger.info(`queue is empty`);
+    this.logger.info({ msg: 'queue is empty' });
   }
 
   private async handleJob<T, R = void>(job: Job<T>, fn: (value: T, jobId?: string) => Promise<R>): Promise<void> {

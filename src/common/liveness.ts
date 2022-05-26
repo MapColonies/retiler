@@ -27,6 +27,7 @@ export const livenessProbeFactory: FactoryFunction<void> = (container) => {
   });
 
   createTerminus(server, {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     healthChecks: { '/liveness': stubHealthcheck },
     onSignal: shutdownHandler.shutdown.bind(shutdownHandler),
   });

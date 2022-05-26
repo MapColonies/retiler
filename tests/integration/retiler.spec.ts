@@ -27,6 +27,7 @@ describe('retiler', function () {
     });
 
     const mapUrl = container.resolve<string>(MAP_URL);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     interceptor = nock(mapUrl).defaultReplyHeaders({ 'content-type': 'image/png' }).get(/.*/);
   });
 
@@ -40,6 +41,7 @@ describe('retiler', function () {
   afterAll(async () => {
     const shutdownhandler = container.resolve(ShutdownHandler);
     await shutdownhandler.shutdown();
+    container.reset();
   });
 
   describe('Happy Path', function () {
@@ -77,15 +79,19 @@ describe('retiler', function () {
 
       const pgBoss = container.resolve(PgBoss);
       const queueName = container.resolve<string>(QUEUE_NAME);
-      const jobId1 = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
-      const jobId2 = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } });
-      const jobId3 = await pgBoss.send({ name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+      const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+      const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
       await consumeAndProcessFactory(container)();
 
-      const job1 = await pgBoss.getJobById(jobId1 as string);
-      const job2 = await pgBoss.getJobById(jobId2 as string);
-      const job3 = await pgBoss.getJobById(jobId3 as string);
+      const [job1, job2, job3] = await Promise.all([
+        pgBoss.getJobById(jobId1 as string),
+        pgBoss.getJobById(jobId2 as string),
+        pgBoss.getJobById(jobId3 as string),
+      ]);
 
       expect(job1).toHaveProperty('state', 'completed');
       expect(job2).toHaveProperty('state', 'completed');
@@ -100,15 +106,19 @@ describe('retiler', function () {
 
       const pgBoss = container.resolve(PgBoss);
       const queueName = container.resolve<string>(QUEUE_NAME);
-      const jobId1 = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
-      const jobId2 = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } });
-      const jobId3 = await pgBoss.send({ name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+      const request1 = { name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } };
+      const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+      const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
       await consumeAndProcessFactory(container)();
 
-      const job1 = await pgBoss.getJobById(jobId1 as string);
-      const job2 = await pgBoss.getJobById(jobId2 as string);
-      const job3 = await pgBoss.getJobById(jobId3 as string);
+      const [job1, job2, job3] = await Promise.all([
+        pgBoss.getJobById(jobId1 as string),
+        pgBoss.getJobById(jobId2 as string),
+        pgBoss.getJobById(jobId3 as string),
+      ]);
 
       expect(job1).toHaveProperty('state', 'failed');
       expect(job1).toHaveProperty('output.message', 'x index out of range of tile grid');
