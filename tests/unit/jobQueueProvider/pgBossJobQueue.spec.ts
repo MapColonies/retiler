@@ -35,13 +35,13 @@ describe('PgBossJobQueueProvider', () => {
   });
 
   describe('#startQueue', () => {
-    it('should start pg-boss', async () => {
+    it('should start queue provider', async () => {
       await expect(provider.startQueue()).resolves.not.toThrow();
     });
   });
 
   describe('#stopQueue', () => {
-    it('should stop the queue', async () => {
+    it('should stop the queue provider', async () => {
       await expect(provider.stopQueue()).resolves.not.toThrow();
     });
   });

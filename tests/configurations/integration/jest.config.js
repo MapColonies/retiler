@@ -22,7 +22,6 @@ module.exports = {
   rootDir: '../../../.',
   testMatch: ['<rootDir>/tests/integration/**/*.spec.ts'],
   setupFiles: ['<rootDir>/tests/configurations/jest.setup.ts'],
-  setupFilesAfterEnv: ['<rootDir>/tests/configurations/jest.setupAfterEnv.js'],
   globalSetup: '<rootDir>/tests/configurations/integration/jest.globalSetup.ts',
   moduleDirectories: ['node_modules', 'src'],
   preset: 'ts-jest',

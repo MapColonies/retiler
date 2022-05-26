@@ -15,11 +15,12 @@ export class ArcgisExportMapProvider implements MapProvider {
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(MAP_URL) private readonly mapUrl: string,
     @inject(MAP_FORMAT) private readonly mapFormat: string
-  ) {}
+  ) {
+    this.logger.info({ msg: 'initializing map provider', mapUrl, mapFormat, provider: 'Arcgis' });
+  }
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
     const { parent, ...baseTile } = tile;
-    this.logger.debug({ msg: `fetching map from ${this.mapUrl}`, tile: baseTile, parent: tile.parent });
 
     const bbox = tileToBoundingBox(baseTile);
     const mapSizePerAxis = tile.metatile * TILE_SIZE;
@@ -32,16 +33,27 @@ export class ArcgisExportMapProvider implements MapProvider {
     };
 
     try {
+      const requestConfig: AxiosRequestConfig<Buffer> = { responseType: 'arraybuffer', params: requestParams };
+
+      this.logger.debug({ msg: 'fetching map from provider', tile: baseTile, parent: tile.parent, mapUrl: this.mapUrl, ...requestConfig });
+
       const [response, duration] = await timerify<AxiosResponse<Buffer>, [string, AxiosRequestConfig]>(
         this.axiosClient.get.bind(this.axiosClient),
         this.mapUrl,
-        { responseType: 'arraybuffer', params: requestParams }
+        requestConfig
       );
 
-      this.logger.debug({ msg: 'finished fetching map', tile: baseTile, duration, parent: tile.parent });
+      this.logger.debug({ msg: 'finished fetching map from provider', tile: baseTile, duration, parent: tile.parent, mapUrl: this.mapUrl });
       return response.data;
     } catch (error) {
       const axiosError = error as AxiosError<Buffer>;
+      this.logger.error({
+        msg: 'an error occurred while fetching map from provider',
+        err: axiosError,
+        tile: baseTile,
+        parent: tile.parent,
+        mapUrl: this.mapUrl,
+      });
       throw axiosError;
     }
   }

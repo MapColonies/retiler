@@ -18,11 +18,11 @@ export const consumeAndProcessFactory: FactoryFunction<() => Promise<void>> = (c
     await queueProv.consumeQueue<TileWithMetadata>(async (tile, jobId) => {
       const { parent, ...baseTile } = tile;
 
-      logger.info({ msg: 'started processing tile', jobId, tile: baseTile, parent });
+      logger.info({ msg: 'started processing tile', jobId, tile: baseTile, parent, parallelism });
 
       const [, duration] = await timerify(processor.processTile.bind(processor), tile);
 
-      logger.info({ msg: 'processing tile completed successfully', jobId, duration, tile: baseTile, parent });
+      logger.info({ msg: 'processing tile completed successfully', jobId, duration, tile: baseTile, parent, parallelism });
     }, parallelism);
   };
 

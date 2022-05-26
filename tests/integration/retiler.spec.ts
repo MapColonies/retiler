@@ -12,6 +12,8 @@ import { consumeAndProcessFactory } from '../../src/app';
 import { ShutdownHandler } from '../../src/common/shutdownHandler';
 import { MAP_URL, QUEUE_NAME, S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../src/common/constants';
 
+const LONG_TEST_TIMEOUT = 10000;
+
 describe('retiler', function () {
   let container: DependencyContainer;
   let interceptor: nock.Interceptor;
@@ -40,6 +42,7 @@ describe('retiler', function () {
   afterAll(async () => {
     const shutdownhandler = container.resolve(ShutdownHandler);
     await shutdownhandler.shutdown();
+    container.reset();
   });
 
   describe('Happy Path', function () {
@@ -92,7 +95,7 @@ describe('retiler', function () {
       expect(job3).toHaveProperty('state', 'completed');
 
       scope.done();
-    });
+    }, LONG_TEST_TIMEOUT);
 
     it('should complete some jobs even when one fails', async function () {
       const mapBuffer = await readFile('tests/2048x2048.png');
