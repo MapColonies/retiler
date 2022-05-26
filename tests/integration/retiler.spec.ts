@@ -12,8 +12,6 @@ import { consumeAndProcessFactory } from '../../src/app';
 import { ShutdownHandler } from '../../src/common/shutdownHandler';
 import { MAP_URL, QUEUE_NAME, S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../src/common/constants';
 
-const LONG_TEST_TIMEOUT = 10000;
-
 describe('retiler', function () {
   let container: DependencyContainer;
   let interceptor: nock.Interceptor;
@@ -75,31 +73,32 @@ describe('retiler', function () {
       scope.done();
     });
 
-    it(
-      'should complete multiple jobs',
-      async function () {
-        const mapBuffer = await readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
+    it('should complete multiple jobs', async function () {
+      const mapBuffer = await readFile('tests/2048x2048.png');
+      const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
 
-        const pgBoss = container.resolve(PgBoss);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      const pgBoss = container.resolve(PgBoss);
+      const queueName = container.resolve<string>(QUEUE_NAME);
+      const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
 
-        const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
+      const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
-        await consumeAndProcessFactory(container)();
+      await consumeAndProcessFactory(container)();
 
-        const [job1, job2, job3] = await Promise.all([pgBoss.getJobById(jobId1 as string), pgBoss.getJobById(jobId2 as string), pgBoss.getJobById(jobId3 as string)]);
+      const [job1, job2, job3] = await Promise.all([
+        pgBoss.getJobById(jobId1 as string),
+        pgBoss.getJobById(jobId2 as string),
+        pgBoss.getJobById(jobId3 as string),
+      ]);
 
-        expect(job1).toHaveProperty('state', 'completed');
-        expect(job2).toHaveProperty('state', 'completed');
-        expect(job3).toHaveProperty('state', 'completed');
+      expect(job1).toHaveProperty('state', 'completed');
+      expect(job2).toHaveProperty('state', 'completed');
+      expect(job3).toHaveProperty('state', 'completed');
 
-        scope.done();
-      }
-    );
+      scope.done();
+    });
 
     it('should complete some jobs even when one fails', async function () {
       const mapBuffer = await readFile('tests/2048x2048.png');
@@ -115,7 +114,11 @@ describe('retiler', function () {
 
       await consumeAndProcessFactory(container)();
 
-      const [job1, job2, job3] = await Promise.all([pgBoss.getJobById(jobId1 as string), pgBoss.getJobById(jobId2 as string), pgBoss.getJobById(jobId3 as string)]);
+      const [job1, job2, job3] = await Promise.all([
+        pgBoss.getJobById(jobId1 as string),
+        pgBoss.getJobById(jobId2 as string),
+        pgBoss.getJobById(jobId3 as string),
+      ]);
 
       expect(job1).toHaveProperty('state', 'failed');
       expect(job1).toHaveProperty('output.message', 'x index out of range of tile grid');
