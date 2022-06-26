@@ -1,7 +1,7 @@
 import { DependencyContainer, Lifecycle } from 'tsyringe';
 import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
-import { logMethod } from '@map-colonies/telemetry';
+import { getOtelMixin } from '@map-colonies/telemetry';
 import axios from 'axios';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
@@ -46,13 +46,11 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const queueName = config.get<string>('app.queueName');
 
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
-    // @ts-expect-error the signature is wrong
-    const logger = jsLogger({ ...loggerConfig, hooks: { logMethod }, base: { queue: queueName } });
+    const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin(), base: { queue: queueName } });
 
     const pgBossConfig = config.get<PgBossConfig>('app.jobQueue.pgBoss');
     const pgBoss = await pgBossFactory(pgBossConfig);
 
-    tracing.start();
     const tracer = trace.getTracer(SERVICE_NAME);
     shutdownHandler.addFunction(tracing.stop.bind(tracing));
 
