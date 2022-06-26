@@ -4,7 +4,7 @@ export const SERVICE_NAME = readPackageJsonSync().name ?? 'unknown_service';
 export const DEFAULT_LIVENESS_PORT = 8080;
 
 export const IGNORED_OUTGOING_TRACE_ROUTES = [/^.*\/v1\/metrics.*$/];
-export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/];
+export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/, /^.*\/metrics.*/];
 
 export const PROJECT_NAME_SYMBOL = Symbol('projectName');
 export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
