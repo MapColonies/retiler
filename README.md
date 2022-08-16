@@ -32,20 +32,28 @@ flowchart TD
 
 `app.jobQueue.noSupervisor`: flag for maintenance and monitoring operations on the job queue. defaults to true (meaning no supervision)
 
-`map.url`: the url of the `ArcGIS` service to fetch the map from
+`app.map.provider`: the map provider type, wms or arcgis
 
-`map.client.timeoutMs`: the timeout in ms for a fetch map request. defaults to 60000
+`app.map.url`: the url of the map provider service to fetch the map from
 
-`tilesStorage.s3Bucket`: the bucket name for tiles storage
+`app.map.client.timeoutMs`: the timeout in ms for a fetch map request. defaults to 60000
 
-`tilesStorage.layout.format`: the format of the tile's key in the storage bucket, the z, x, y values of the tile can be retrieved to the key. defaults to `prefix/{z}/{x}/{y}.png`
+`app.map.wms.version`: wms service version, 1.1.1 or 1.3.0
+
+`app.map.wms.layers`: layers to display on map, a comma-separated list of layer names
+
+`app.map.wms.styles`: styles in which layers are to be rendered, a comma-separated list of style names
+
+`app.tilesStorage.s3Bucket`: the bucket name for tiles storage
+
+`app.tilesStorage.layout.format`: the format of the tile's key in the storage bucket, the z, x, y values of the tile can be retrieved to the key. defaults to `prefix/{z}/{x}/{y}.png`
 e.g. `prefix/{z}/{x}/{y}.png` formated to the tile
 ```json
 { z: 3, x: 10, y: 4 }
 ```
 will result in the key: "prefix/3/10/4.png"
 
-`tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on. defaults to true
+`app.tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on. defaults to true
 
 ## Run Locally
 
