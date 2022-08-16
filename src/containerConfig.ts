@@ -21,6 +21,7 @@ import {
   LIVENESS_PROBE_FACTORY,
   CONSUME_AND_PROCESS_FACTORY,
   MAP_FORMAT,
+  MAP_PROVIDER_CONFIG,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -28,12 +29,15 @@ import { tracing } from './common/tracing';
 import { JobQueueProvider } from './retiler/interfaces';
 import { PgBossJobQueueProvider } from './retiler/jobQueueProvider/pgBossJobQueue';
 import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFactory';
-import { ArcgisExportMapProvider } from './retiler/mapProvider/arcgisExport';
+import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvider';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
 import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
 import { livenessProbeFactory } from './common/liveness';
 import { consumeAndProcessFactory } from './app';
+import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
+import { MapProviderType } from './retiler/types';
+import { WmsConfig } from './retiler/mapProvider/wms/requestParams';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -61,6 +65,14 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const mapClientTimeout = config.get<number>('app.map.client.timeoutMs');
     const axiosClient = axios.create({ timeout: mapClientTimeout });
 
+    // register configured map provider accordingly
+    let mapProviderConfig;
+    const mapProviderType = config.get<MapProviderType>('app.map.provider');
+    if (mapProviderType === 'wms') {
+      mapProviderConfig = config.get<WmsConfig>('app.map.wms');
+    }
+    const mapProv = mapProviderType === 'wms' ? WmsMapProvider : ArcgisMapProvider;
+
     const dependencies: InjectionObject<unknown>[] = [
       { token: ShutdownHandler, provider: { useValue: shutdownHandler } },
       { token: SERVICES.CONFIG, provider: { useValue: config } },
@@ -87,7 +99,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: MAP_FORMAT, provider: { useValue: config.get<string>('app.map.format') } },
       { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
       { token: TILES_STORAGE_LAYOUT, provider: { useValue: config.get<TileStoragLayout>('app.tilesStorage.layout') } },
-      { token: MAP_PROVIDER, provider: { useClass: ArcgisExportMapProvider } },
+      { token: MAP_PROVIDER, provider: { useClass: mapProv } },
+      { token: MAP_PROVIDER_CONFIG, provider: { useValue: mapProviderConfig } },
       { token: MAP_SPLITTER_PROVIDER, provider: { useClass: SharpMapSplitter } },
       { token: TILES_STORAGE_PROVIDER, provider: { useClass: S3TilesStorage } },
     ];

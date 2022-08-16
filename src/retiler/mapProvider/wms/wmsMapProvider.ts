@@ -2,21 +2,22 @@ import { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'ax
 import { tileToBoundingBox } from '@map-colonies/tile-calc';
 import { Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
-import { MAP_FORMAT, MAP_URL, SERVICES, TILE_SIZE } from '../../common/constants';
-import { MapProvider } from '../interfaces';
-import { timerify } from '../../common/util';
-import { TileWithMetadata } from '../types';
-import { ARCGIS_MAP_PARAMS } from './constants';
+import { MAP_FORMAT, MAP_PROVIDER_CONFIG, MAP_URL, SERVICES, TILE_SIZE } from '../../../common/constants';
+import { MapProvider } from '../../interfaces';
+import { timerify } from '../../../common/util';
+import { TileWithMetadata } from '../../types';
+import { BASE_REQUEST_PARAMS, getVersionDepParams, WmsConfig, WmsRequestParams } from './requestParams';
 
 @injectable()
-export class ArcgisExportMapProvider implements MapProvider {
+export class WmsMapProvider implements MapProvider {
   public constructor(
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(MAP_URL) private readonly mapUrl: string,
-    @inject(MAP_FORMAT) private readonly mapFormat: string
+    @inject(MAP_FORMAT) private readonly mapFormat: string,
+    @inject(MAP_PROVIDER_CONFIG) private readonly wmsConfig: WmsConfig
   ) {
-    this.logger.info({ msg: 'initializing map provider', mapUrl, mapFormat, provider: 'Arcgis' });
+    this.logger.info({ msg: 'initializing map provider', mapUrl, mapFormat, provider: 'wms', ...wmsConfig });
   }
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
@@ -25,11 +26,13 @@ export class ArcgisExportMapProvider implements MapProvider {
     const bbox = tileToBoundingBox(baseTile);
     const mapSizePerAxis = tile.metatile * TILE_SIZE;
 
-    const requestParams = {
-      ...ARCGIS_MAP_PARAMS,
+    const requestParams: WmsRequestParams = {
+      ...BASE_REQUEST_PARAMS,
+      ...getVersionDepParams(this.wmsConfig.version, bbox),
+      ...this.wmsConfig,
       format: this.mapFormat,
-      bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
-      size: `${mapSizePerAxis},${mapSizePerAxis}`,
+      width: mapSizePerAxis,
+      height: mapSizePerAxis,
     };
 
     try {

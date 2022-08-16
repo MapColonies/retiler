@@ -27,7 +27,7 @@ export class S3TilesStorage implements TilesStorageProvider {
 
     const key = this.determineKey(baseTile);
 
-    this.logger.debug({ msg: 'storing tile in bucket', tile: baseTile, parent, bucketName: this.bucket, key });
+    // this.logger.debug({ msg: 'storing tile in bucket', tile: baseTile, parent, bucketName: this.bucket, key });
 
     const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer });
 

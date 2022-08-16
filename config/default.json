@@ -30,6 +30,7 @@
       }
     },
     "map": {
+      "provider": "arcgis",
       "url": "https://some-domain.com/api/",
       "format": "png32",
       "client": {
