@@ -11,7 +11,7 @@ Tiles for rendering will be consumed from a job queue, currently using [pgboss](
 
 Each tile holds a `metatile` value and `ZXY` postition. typically a consumed tile will be a square metatile of 8x8 normal tiles (64 tiles), meaning covering a square area of 2048x2048 pixels.
 
-The initial metatile image will be requested for rendering from an `ArcGIS` service using the [export map operation](http://sampleserver1.arcgisonline.com/arcgis/sdk/rest/export.html), the request of a large area for rendering e.g. 2048x2048 pixels is more efficient than 64 requests of 256x256.
+The initial metatile image will be requested for rendering from a map provider service (wms or arcgis), for instance on arcgis, by using the [export map operation](http://sampleserver1.arcgisonline.com/arcgis/sdk/rest/export.html), the request of a large area for rendering e.g. 2048x2048 pixels is more efficient than 64 requests of 256x256.
 
 The fetched metatile image will be splitted into 256x256 pixels tiles in a PNG format and finally will be stored on s3 storage.
 
@@ -53,7 +53,7 @@ e.g. `prefix/{z}/{x}/{y}.png` formated to the tile
 ```
 will result in the key: "prefix/3/10/4.png"
 
-`app.tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on. defaults to true
+`app.tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `app.tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on. defaults to true
 
 ## Run Locally
 
