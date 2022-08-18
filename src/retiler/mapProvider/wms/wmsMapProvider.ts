@@ -46,7 +46,12 @@ export class WmsMapProvider implements MapProvider {
         requestConfig
       );
 
+      if (response.headers['content-type'].includes('xml')) {
+        throw new Error('The response returned from the service was in xml format');
+      }
+
       this.logger.debug({ msg: 'finished fetching map from provider', tile: baseTile, duration, parent: tile.parent, mapUrl: this.mapUrl });
+
       return response.data;
     } catch (error) {
       const axiosError = error as AxiosError<Buffer>;

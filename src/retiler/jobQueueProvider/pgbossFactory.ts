@@ -1,14 +1,13 @@
-import { readFile } from 'fs/promises';
+import { readFileSync } from 'fs';
 import PgBoss, { ConstructorOptions, DatabaseOptions } from 'pg-boss';
 import { SERVICE_NAME } from '../../common/constants';
 
-const createDatabaseOptions = async (dbConfig: PgBossConfig): Promise<DatabaseOptions> => {
+const createDatabaseOptions = (dbConfig: PgBossConfig): DatabaseOptions => {
   const { enableSslAuth, sslPaths, ...databaseOptions } = dbConfig;
   databaseOptions.application_name = SERVICE_NAME;
   if (enableSslAuth) {
     databaseOptions.password = undefined;
-    const [ca, cert, key] = await Promise.all([readFile(sslPaths.ca), readFile(sslPaths.cert), readFile(sslPaths.key)]);
-    databaseOptions.ssl = { key, cert, ca };
+    databaseOptions.ssl = { key: readFileSync(sslPaths.key), cert: readFileSync(sslPaths.cert), ca: readFileSync(sslPaths.ca) };
   }
   return databaseOptions;
 };
@@ -19,7 +18,7 @@ export type PgBossConfig = {
   certSecretName: string;
 } & ConstructorOptions;
 
-export const pgBossFactory = async (bossConfig: PgBossConfig): Promise<PgBoss> => {
-  const databaseOptions = await createDatabaseOptions(bossConfig);
+export const pgBossFactory = (bossConfig: PgBossConfig): PgBoss => {
+  const databaseOptions = createDatabaseOptions(bossConfig);
   return new PgBoss({ ...bossConfig, ...databaseOptions, noScheduling: true });
 };
