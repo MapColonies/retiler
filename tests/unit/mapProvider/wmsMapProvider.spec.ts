@@ -21,7 +21,8 @@ describe('wmsMapProvider', () => {
       const wmsConfig: WmsConfig = { version: '1.1.1', layers: 'someLayer', styles: 'someStyle' };
       const wmsProv = new WmsMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'image/png', wmsConfig);
 
-      const response = { data: Buffer.from('test'), headers: { "content-type": 'image/png' } };
+      /* eslint-disable @typescript-eslint/naming-convention */
+      const response = { data: Buffer.from('test'), headers: { 'content-type': 'image/png' } };
       mockedClient.get.mockResolvedValue(response);
 
       const tile = { z: 0, x: 0, y: 0, metatile: 1 };
@@ -48,7 +49,8 @@ describe('wmsMapProvider', () => {
 
       const wmsProv = new WmsMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'image/png', wmsConfig);
 
-      const response = { data: Buffer.from('test'), headers: { "content-type": 'image/png' }  };
+      /* eslint-disable @typescript-eslint/naming-convention */
+      const response = { data: Buffer.from('test'), headers: { 'content-type': 'image/png' } };
       mockedClient.get.mockResolvedValue(response);
 
       const tile = { z: 0, x: 0, y: 0, metatile: 1 };
