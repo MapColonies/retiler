@@ -57,6 +57,7 @@
       }
     },
     "map": {
+      "provider": "MAP_PROVIDER",
       "url": "MAP_URL",
       "format": "MAP_FORMAT",
       "client": {
@@ -64,6 +65,11 @@
           "__name": "MAP_CLIENT_TIMEOUT_MS",
           "__format": "number"
         }
+      },
+      "wms": {
+        "version": "MAP_WMS_VERSION",
+        "layers": "MAP_WMS_LAYERS",
+        "styles": "MAP_WMS_STYLES"
       }
     },
     "tilesStorage": {

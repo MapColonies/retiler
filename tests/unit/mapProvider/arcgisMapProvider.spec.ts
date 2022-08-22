@@ -1,17 +1,17 @@
 import { AxiosError, AxiosInstance } from 'axios';
 import jsLogger from '@map-colonies/js-logger';
-import { ArcgisExportMapProvider } from '../../../src/retiler/mapProvider/arcgisExport';
+import { ArcgisMapProvider } from '../../../src/retiler/mapProvider/arcgis/arcgisMapProvider';
 
 jest.mock('axios');
 
-describe('arcgisExport', () => {
+describe('arcgisMapProvider', () => {
   describe('#getMap', () => {
-    let arcgisMap: ArcgisExportMapProvider;
+    let arcgisProv: ArcgisMapProvider;
     let mockedClient: jest.Mocked<AxiosInstance>;
 
     beforeEach(function () {
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
-      arcgisMap = new ArcgisExportMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'png32');
+      arcgisProv = new ArcgisMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'png32');
     });
 
     afterEach(function () {
@@ -24,7 +24,7 @@ describe('arcgisExport', () => {
 
       const tile = { z: 0, x: 0, y: 0, metatile: 1 };
 
-      const buffer = await arcgisMap.getMap(tile);
+      const buffer = await arcgisProv.getMap(tile);
 
       expect(buffer).toBeInstanceOf(Buffer);
       expect(buffer.toString()).toBe('test');
@@ -37,7 +37,7 @@ describe('arcgisExport', () => {
 
       const tile = { z: 0, x: 0, y: 0, metatile: 1 };
 
-      const promise = arcgisMap.getMap(tile);
+      const promise = arcgisProv.getMap(tile);
 
       await expect(promise).rejects.toThrow(error);
     });
