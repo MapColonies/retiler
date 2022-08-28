@@ -22,8 +22,11 @@ void registerExternalValues()
     await shutdownHandler.shutdown();
   })
   .catch(async (error) => {
-    const errorLogger = depContainer?.isRegistered(SERVICES.LOGGER) === true ? depContainer.resolve<Logger>(SERVICES.LOGGER).error : console.error;
-    errorLogger('an unexpected error occurred', error);
+    const errorLogger =
+      depContainer?.isRegistered(SERVICES.LOGGER) == true
+        ? depContainer.resolve<Logger>(SERVICES.LOGGER).error.bind(depContainer.resolve<Logger>(SERVICES.LOGGER))
+        : console.error;
+    errorLogger({msg: 'an unexpected error occurred', err: error});
 
     if (depContainer?.isRegistered(ShutdownHandler) === true) {
       const shutdownHandler = depContainer.resolve(ShutdownHandler);
