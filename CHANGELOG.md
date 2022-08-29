@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/MapColonies/retiler/compare/v1.1.1...v1.2.0) (2022-08-29)
+
+
+### Features
+
+* wms map provider ([#20](https://github.com/MapColonies/retiler/issues/20)) ([19e3e98](https://github.com/MapColonies/retiler/commit/19e3e98cc1cb23df8c84f70c2b46fbbbb6e2a5e9))
+
+
+### Bug Fixes
+
+* logger in index.ts ([#21](https://github.com/MapColonies/retiler/issues/21)) ([21b571f](https://github.com/MapColonies/retiler/commit/21b571f295ed9e592c335901e42a4a5c7791c3ea))
+
 ### [1.1.1](https://github.com/MapColonies/retiler/compare/v1.1.0...v1.1.1) (2022-06-15)
 
 ## [1.1.0](https://github.com/MapColonies/retiler/compare/v1.0.0...v1.1.0) (2022-05-03)
