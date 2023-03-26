@@ -11,7 +11,7 @@ RUN npm run build
 
 FROM node:16-alpine as production
 
-RUN apk add dumb-init
+RUN apk add dumb-init binutils
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=8080
