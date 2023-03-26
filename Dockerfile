@@ -1,5 +1,6 @@
-FROM node:16 as build
+FROM node:16-alpine3.16 as build
 
+RUN apk add python3 make g++ libexecinfo-dev
 
 WORKDIR /tmp/buildApp
 
@@ -9,9 +10,9 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM node:16-alpine as production
+FROM node:16-alpine3.16 as production
 
-RUN apk add dumb-init
+RUN apk add dumb-init binutils python3 make g++ libexecinfo-dev
 
 ENV NODE_ENV=production
 ENV SERVER_PORT=8080
