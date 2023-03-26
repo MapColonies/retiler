@@ -61,8 +61,7 @@
     "reflect-metadata": "^0.1.13",
     "sharp": "^0.32.0",
     "string-format": "^2.0.0",
-    "tsyringe": "^4.6.0",
-    "segfault-handler": "1.3.0"
+    "tsyringe": "^4.6.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^13.2.1",
