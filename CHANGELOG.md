@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/MapColonies/retiler/compare/v1.2.0...v1.3.0) (2023-03-26)
+
+
+### Features
+
+* added core dump debug capabillity and upgraded sharp ([#24](https://github.com/MapColonies/retiler/issues/24)) ([8cef15d](https://github.com/MapColonies/retiler/commit/8cef15d50a8527fed70ba4ce7004569bf5c7755f))
+
 ## [1.2.0](https://github.com/MapColonies/retiler/compare/v1.1.1...v1.2.0) (2022-08-29)
 
 
