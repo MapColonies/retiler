@@ -1,9 +1,11 @@
-/* eslint-disable import/first */
+/* eslint-disable */
 if (process.env.DEBUG_BINARY === 'true') {
   const segfaultHandler = require('segfault-handler');
-
+  
   segfaultHandler.registerHandler('crash.log');
 }
+/* eslint-enable */
+/* eslint-disable import/first */
 // this import must be called before the first import of tsyringe
 import 'reflect-metadata';
 import { Logger } from '@map-colonies/js-logger';
