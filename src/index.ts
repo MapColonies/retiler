@@ -1,7 +1,7 @@
 /* eslint-disable */
 if (process.env.DEBUG_BINARY === 'true') {
   const segfaultHandler = require('segfault-handler');
-  
+
   segfaultHandler.registerHandler('crash.log');
 }
 /* eslint-enable */

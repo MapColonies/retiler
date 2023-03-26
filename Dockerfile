@@ -1,4 +1,4 @@
-FROM node:16-alpine as build
+FROM node:16-alpine3.16 as build
 
 RUN apk add python3 make g++ libexecinfo-dev
 
@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM node:16-alpine as production
+FROM node:16-alpine3.16 as production
 
 RUN apk add dumb-init binutils python3 make g++ libexecinfo-dev
 
