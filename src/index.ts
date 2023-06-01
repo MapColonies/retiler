@@ -17,9 +17,6 @@ void registerExternalValues()
 
     const consumeAndProcess = container.resolve<() => Promise<void>>(CONSUME_AND_PROCESS_FACTORY);
     await consumeAndProcess();
-
-    const shutdownHandler = container.resolve(ShutdownHandler);
-    await shutdownHandler.shutdown();
   })
   .catch(async (error: Error) => {
     const errorLogger =

@@ -31,6 +31,10 @@
       "__format": "number"
     },
     "jobQueue": {
+      "waitTimeout": {
+        "__name": "QUEUE_WAIT_TIMEOUT",
+        "__format": "number"
+      },
       "pgBoss": {
         "host": "DB_HOST",
         "port": {

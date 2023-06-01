@@ -16,6 +16,7 @@ export const CONSUME_AND_PROCESS_FACTORY = Symbol('ConsumeAndProcessFactory');
 export const LIVENESS_PROBE_FACTORY = Symbol('LivenessProbeFactory');
 
 export const QUEUE_NAME = Symbol('QueueName');
+export const QUEUE_EMPTY_TIMEOUT = Symbol('QueueTimeout');
 
 export const MAP_URL = Symbol('MapURL');
 export const MAP_FORMAT = Symbol('MapFormat');
