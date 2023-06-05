@@ -1,7 +1,7 @@
+import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import jsLogger from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
 import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pgBossJobQueue';
-import { setTimeout } from 'timers/promises';
 
 describe('PgBossJobQueueProvider', () => {
   let provider: PgBossJobQueueProvider;
@@ -28,7 +28,7 @@ describe('PgBossJobQueueProvider', () => {
   });
 
   beforeEach(function () {
-    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, jsLogger({ enabled: true }), 'queue-name', 50);
+    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, jsLogger({ enabled: false }), 'queue-name', 50);
   });
 
   afterEach(function () {
@@ -63,29 +63,22 @@ describe('PgBossJobQueueProvider', () => {
     });
   });
 
-  describe.only('#consumeQueue', () => {
-    // it('should not iterate on any jobs if no jobs were fetched', async () => {
-    //   pgbossMock.fetch.mockResolvedValue(null);
-    //   await expect(provider.consumeQueue(jest.fn())).resolves.not.toThrow();
-    // });
-
-    it.only('should consume the queue and call the provided funcs', async () => {
+  describe('#consumeQueue', () => {
+    it('should consume the queue and call the provided funcs', async () => {
       const job1 = { id: 'id1', data: { key: 'value' } };
       const job2 = { id: 'id2', data: { key: 'value' } };
 
-      const fnMock = jest.fn().mockImplementation(async () => {
-        await setTimeout(100);
-      });
-      // pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
-      pgbossMock.fetch.mockResolvedValue(job1);
+      const fnMock = jest.fn();
+      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
       await provider.startQueue();
       const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(50);
       await provider.stopQueue();
 
       await expect(queuePromise).resolves.not.toThrow();
 
       expect(fnMock).toHaveBeenCalledTimes(2);
-      expect(pgbossMock.complete).toHaveBeenCalled();
+      expect(pgbossMock.complete).toHaveBeenCalledTimes(2);
       expect(pgbossMock.fail).not.toHaveBeenCalled();
     }, 999999);
 
@@ -97,10 +90,16 @@ describe('PgBossJobQueueProvider', () => {
       const fnMock = jest.fn();
       pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce(null);
 
-      await expect(provider.consumeQueue(fnMock, 2)).resolves.not.toThrow();
+      await provider.startQueue();
+      const queuePromise = provider.consumeQueue(fnMock, 2);
+      await setTimeoutPromise(50);
+      await provider.stopQueue();
+
+
+      await expect(queuePromise).resolves.not.toThrow();
 
       expect(fnMock).toHaveBeenCalledTimes(3);
-      expect(pgbossMock.complete).toHaveBeenCalled();
+      expect(pgbossMock.complete).toHaveBeenCalledTimes(3);
       expect(pgbossMock.fail).not.toHaveBeenCalled();
     });
 
@@ -112,7 +111,11 @@ describe('PgBossJobQueueProvider', () => {
       const fetchError = new Error('fetch error');
       fnMock.mockRejectedValue(fetchError);
 
-      await expect(provider.consumeQueue(fnMock)).resolves.not.toThrow();
+      await provider.startQueue();
+      const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(50);
+      await provider.stopQueue();
+      await expect(queuePromise).resolves.not.toThrow();
 
       expect(pgbossMock.complete).not.toHaveBeenCalled();
       expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);

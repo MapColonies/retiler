@@ -1,3 +1,4 @@
+import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import { readFile } from 'fs/promises';
 import jsLogger from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
@@ -11,7 +12,19 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { registerExternalValues } from '../../src/containerConfig';
 import { consumeAndProcessFactory } from '../../src/app';
 import { ShutdownHandler } from '../../src/common/shutdownHandler';
-import { MAP_URL, QUEUE_NAME, S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../src/common/constants';
+import { JOB_QUEUE_PROVIDER, MAP_URL, QUEUE_NAME, S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../src/common/constants';
+import { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBossJobQueue';
+
+async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
+  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+  for await (const _unused of setIntervalPromise(10)) {
+    const job = await boss.getJobById(jobId);
+    if (job?.completedon) {
+      return job;
+    }
+  }
+  return null;
+}
 
 describe('retiler', function () {
   let interceptor: nock.Interceptor;
@@ -28,7 +41,7 @@ describe('retiler', function () {
   describe('arcgis', function () {
     let container: DependencyContainer;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       container = await registerExternalValues({
         override: [
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
@@ -59,12 +72,16 @@ describe('retiler', function () {
         const s3SendSpy = jest.spyOn(s3Client, 'send');
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'completed');
 
@@ -84,6 +101,7 @@ describe('retiler', function () {
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
         const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
@@ -91,18 +109,46 @@ describe('retiler', function () {
 
         const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
         const [job1, job2, job3] = await Promise.all([
-          pgBoss.getJobById(jobId1 as string),
-          pgBoss.getJobById(jobId2 as string),
-          pgBoss.getJobById(jobId3 as string),
+          waitForJobToBeResolved(pgBoss, jobId1 as string),
+          waitForJobToBeResolved(pgBoss, jobId2 as string),
+          waitForJobToBeResolved(pgBoss, jobId3 as string),
         ]);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job1).toHaveProperty('state', 'completed');
         expect(job2).toHaveProperty('state', 'completed');
         expect(job3).toHaveProperty('state', 'completed');
 
+        scope.done();
+      });
+
+      it('should complete running jobs', async function () {
+        const mapBuffer = await readFile('tests/2048x2048.png');
+        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request4 = { name: queueName, data: { z: 3, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request5 = { name: queueName, data: { z: 4, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+        await pgBoss.insert([request1,request2,request3,request4, request5]);
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        await setTimeoutPromise(5);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
         scope.done();
       });
 
@@ -112,19 +158,24 @@ describe('retiler', function () {
 
         const pgBoss = container.resolve(PgBoss);
         const queueName = container.resolve<string>(QUEUE_NAME);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const request1 = { name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } };
         const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
         const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
 
         const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
         const [job1, job2, job3] = await Promise.all([
-          pgBoss.getJobById(jobId1 as string),
-          pgBoss.getJobById(jobId2 as string),
-          pgBoss.getJobById(jobId3 as string),
+          waitForJobToBeResolved(pgBoss, jobId1 as string),
+          waitForJobToBeResolved(pgBoss, jobId2 as string),
+          waitForJobToBeResolved(pgBoss, jobId3 as string),
         ]);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job1).toHaveProperty('state', 'failed');
         expect(job1).toHaveProperty('output.message', 'x index out of range of tile grid');
@@ -132,31 +183,24 @@ describe('retiler', function () {
         expect(job3).toHaveProperty('state', 'completed');
 
         scope.done();
-      });
-
-      it('should resolve without errors if queue is empty', async function () {
-        const pgBoss = container.resolve(PgBoss);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-
-        const queueSizeBefore = await pgBoss.getQueueSize(queueName);
-        const promise = consumeAndProcessFactory(container)();
-        const queueSizeAfter = await pgBoss.getQueueSize(queueName);
-
-        expect(queueSizeBefore).toBe(0);
-        await expect(promise).resolves.not.toThrow();
-        expect(queueSizeAfter).toBe(0);
-      });
+      }, 10000);
     });
 
     describe('Bad Path', function () {
       it('should fail the job if the tile is out of bounds', async function () {
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', 'x index out of range of tile grid');
       });
@@ -166,12 +210,17 @@ describe('retiler', function () {
         const scope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', 'fetching map error');
@@ -183,12 +232,17 @@ describe('retiler', function () {
         const scope = interceptor.reply(httpStatusCodes.SERVICE_UNAVAILABLE);
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', 'Request failed with status code 503');
@@ -202,6 +256,7 @@ describe('retiler', function () {
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
@@ -209,9 +264,13 @@ describe('retiler', function () {
         const s3Client = container.resolve<S3Client>(SERVICES.S3);
         jest.spyOn(s3Client, 'send').mockRejectedValue(new Error(errorMessage) as never);
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', `an error occurred during the put of key 0/0/0.png on bucket ${bucket}, ${errorMessage}`);
@@ -236,7 +295,7 @@ describe('retiler', function () {
   describe('wms', function () {
     let container: DependencyContainer;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       container = await registerExternalValues({
         override: [
           {
@@ -284,12 +343,17 @@ describe('retiler', function () {
         const s3SendSpy = jest.spyOn(s3Client, 'send');
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
+        
+        const job = await waitForJobToBeResolved(pgBoss,jobId as string);
 
-        const job = await pgBoss.getJobById(jobId as string);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'completed');
 
@@ -311,12 +375,18 @@ describe('retiler', function () {
         const scope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss,jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', 'fetching map error');
@@ -330,12 +400,17 @@ describe('retiler', function () {
         const scope = nock(mapUrl).get(/.*/).reply(200, '<xml></xml>', { 'content-type': 'text/xml' });
 
         const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        await consumeAndProcessFactory(container)();
+        const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await pgBoss.getJobById(jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss,jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', 'The response returned from the service was in xml format');

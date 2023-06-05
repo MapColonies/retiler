@@ -7,7 +7,6 @@ import { QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constant
 import { JobQueueProvider } from '../interfaces';
 import { Job } from './interfaces';
 
-const promiseTimeout = 5000;
 @injectable()
 export class PgBossJobQueueProvider implements JobQueueProvider {
   private isRunning = false;
@@ -54,12 +53,13 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public async consumeQueue<T, R = void>(fn: (value: T, jobId?: string) => Promise<R>, parallelism = 1): Promise<void> {
     this.logger.info({ msg: 'started consuming queue', parallelism });
     for await (const job of this.getJobsIterator<T>()) {
-      console.log('handling', this.runningJobs, parallelism)
+      if (this.isDraining || !this.isRunning) {
+        break;
+      }
+
       this.runningJobs++;
       void this.handleJob(job, fn);
-      if (this.runningJobs >= parallelism) {
-        console.log('waiting');
-        
+      if (this.runningJobs >= parallelism) {        
         await new Promise<void>((resolve) => {
           const listner = (): void => {
             if (this.runningJobs < parallelism) {
@@ -83,8 +83,8 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     return new Promise((resolve) => {
       const listner = (): void => {
         if (this.runningJobs === 0) {
-          resolve();
           this.jobFinishedEmitter.removeListener(this.jobFinishedEventName, listner);
+          resolve();
         }
       };
       this.jobFinishedEmitter.on(this.jobFinishedEventName, listner);
@@ -109,13 +109,12 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   }
 
   private async *getJobsIterator<T>(): AsyncGenerator<Job<T>> {
-    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until the queue is empty which breaks the loop
+    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until the queue ends
     while (true) {
-      if (this.isDraining) {
-        return;
+      if (this.isDraining || !this.isRunning) {
+        break;
       }
 
-      await setImmediatePromise();
       const job = await this.pgBoss.fetch<T>(this.queueName);
 
       if (job === null) {
