@@ -22,7 +22,7 @@ import {
   CONSUME_AND_PROCESS_FACTORY,
   MAP_FORMAT,
   MAP_PROVIDER_CONFIG,
-  QUEUE_EMPTY_TIMEOUT
+  QUEUE_EMPTY_TIMEOUT,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';

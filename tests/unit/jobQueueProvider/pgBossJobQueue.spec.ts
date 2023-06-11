@@ -95,7 +95,6 @@ describe('PgBossJobQueueProvider', () => {
       await setTimeoutPromise(50);
       await provider.stopQueue();
 
-
       await expect(queuePromise).resolves.not.toThrow();
 
       expect(fnMock).toHaveBeenCalledTimes(3);

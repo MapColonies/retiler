@@ -59,7 +59,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
       this.runningJobs++;
       void this.handleJob(job, fn);
-      if (this.runningJobs >= parallelism) {        
+      if (this.runningJobs >= parallelism) {
         await new Promise<void>((resolve) => {
           const listner = (): void => {
             if (this.runningJobs < parallelism) {

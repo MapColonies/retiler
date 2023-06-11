@@ -141,7 +141,7 @@ describe('retiler', function () {
         const request4 = { name: queueName, data: { z: 3, x: 0, y: 0, metatile: 8, parent: 'parent' } };
         const request5 = { name: queueName, data: { z: 4, x: 0, y: 0, metatile: 8, parent: 'parent' } };
 
-        await pgBoss.insert([request1,request2,request3,request4, request5]);
+        await pgBoss.insert([request1, request2, request3, request4, request5]);
 
         const consumePromise = consumeAndProcessFactory(container)();
 
@@ -348,8 +348,8 @@ describe('retiler', function () {
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
         const consumePromise = consumeAndProcessFactory(container)();
-        
-        const job = await waitForJobToBeResolved(pgBoss,jobId as string);
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
         await provider.stopQueue();
 
@@ -381,12 +381,11 @@ describe('retiler', function () {
 
         const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await waitForJobToBeResolved(pgBoss,jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
         await provider.stopQueue();
 
         await expect(consumePromise).resolves.not.toThrow();
-
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', 'fetching map error');
@@ -406,7 +405,7 @@ describe('retiler', function () {
 
         const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await waitForJobToBeResolved(pgBoss,jobId as string);
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
         await provider.stopQueue();
 
