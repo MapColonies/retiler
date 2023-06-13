@@ -1,0 +1,79 @@
+global:
+  cloudProvider: {}
+  tracing: {}
+  metrics: {}
+  environment: {}
+
+enabled: true
+environment: development
+replicaCount: 1
+initialDelaySeconds: 60
+nodePort: 30030 #for minikube deployment only
+resetOnConfigChange: true
+
+cloudProvider:
+  dockerRegistryUrl: my-registry-url.io
+  imagePullSecretName: 'my-registry-secret'
+  flavor: openshift
+
+caSecretName: ''
+caPath: '/usr/local/share/ca-certificates'
+caKey: 'ca.crt'
+
+image:
+  repository: retiler
+  tag: 'latest'
+
+dbConfig:
+  host: localhost
+  username: postgres
+  password: postgres
+  database: retiler
+  # port: 5432
+  sslAuth:
+    enabled: false
+    secretName: secret-name
+    certFileName: postgresql.crt
+    keyFileName: postgresql.key
+    caFileName: root.crt
+
+env:
+  logLevel: info
+  projectName: default
+  queueName: QUEUE_NAME
+  parallelism: 5
+  jobQueue:
+    waitTimeout: 5000
+    pgBoss:
+      noSupervisor: true
+  map:
+    provider: arcgis
+    url: https://some-domain.com/api/
+    format: png32
+    wms:
+      version: 1.3.0
+      layers: MAP_WMS_LAYERS
+      styles: MAP_WMS_STYLES
+    client: 
+      timeoutMs: 60000
+  tilesStorage: 
+    s3ClientConfig: 
+      endpoint: http://s3-domain/
+      region: region
+      forcePathStyle: true
+      accessKey: accessKey
+      secretKey: secretKey
+    s3Bucket: bucket-name
+    layout: 
+      format: prefix/{z}/{x}/{y}.png
+      shouldFlipY: true
+      
+resources:
+  enabled: true
+  value:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi

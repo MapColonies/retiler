@@ -22,6 +22,7 @@ import {
   CONSUME_AND_PROCESS_FACTORY,
   MAP_FORMAT,
   MAP_PROVIDER_CONFIG,
+  QUEUE_EMPTY_TIMEOUT,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -49,6 +50,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
   const shutdownHandler = new ShutdownHandler();
   try {
     const queueName = config.get<string>('app.queueName');
+    const queueTimeout = config.get<number>('app.jobQueue.waitTimeout');
 
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
     const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin(), base: { queue: queueName } });
@@ -88,6 +90,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
       },
       { token: QUEUE_NAME, provider: { useValue: queueName } },
+      { token: QUEUE_EMPTY_TIMEOUT, provider: { useValue: queueTimeout } },
       {
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },

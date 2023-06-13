@@ -3,6 +3,7 @@
     "parallelism": 2,
     "queueName": "TEST_QUEUE",
     "jobQueue": {
+      "waitTimeout": 50,
       "pgBoss": {
         "host": "postgres",
         "port": 5432,

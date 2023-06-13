@@ -13,6 +13,7 @@
     "queueName": "QUEUE_NAME",
     "parallelism": 5,
     "jobQueue": {
+      "waitTimeout": 5000,
       "pgBoss": {
         "host": "localhost",
         "port": 5432,

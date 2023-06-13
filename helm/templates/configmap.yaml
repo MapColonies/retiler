@@ -1,0 +1,42 @@
+{{- $chartName := include "retiler.name" . -}}
+{{- if .Values.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ $chartName }}-configmap
+data:
+  LOG_LEVEL: {{ .Values.env.logLevel }}
+  {{- with .Values.dbConfig }}
+  DB_HOST: {{ .host }}
+  DB_NAME: {{ .database }}
+  DB_PORT: {{ .port | default 5432 | quote }}
+  {{- end -}}
+  {{- if .Values.dbConfig.sslAuth.enabled }}
+  DB_ENABLE_SSL_AUTH: "true"
+  DB_CERT_PATH: /tmp/certs/{{ .Values.dbConfig.sslAuth.certFileName }}
+  DB_KEY_PATH: /tmp/certs/{{ .Values.dbConfig.sslAuth.keyFileName }}
+  DB_CA_PATH: /tmp/certs/{{ .Values.dbConfig.sslAuth.caFileName }}
+  {{- else }}
+  DB_ENABLE_SSL_AUTH: "false"
+  {{- end }}
+  {{- with .Values.env }}
+  NO_SUPERVISOR: {{ .jobQueue.pgBoss.noSupervisor | quote }}
+  APP_PROJECT_NAME: {{ .projectName }}
+  QUEUE_NAME: {{ .queueName }}
+  APP_JOB_PARALLELISM: {{ .parallelism | quote }}
+  QUEUE_WAIT_TIMEOUT: {{ .jobQueue.waitTimeout | quote}}
+  MAP_PROVIDER: {{ .map.provider }}
+  MAP_URL: {{ .map.url }}
+  MAP_FORMAT: {{ .map.format }}
+  MAP_CLIENT_TIMEOUT_MS: {{ .map.client.timeoutMs | quote }}
+  MAP_WMS_VERSION: {{ .map.wms.version }}
+  MAP_WMS_LAYERS: {{ .map.wms.layers }}
+  MAP_WMS_STYLES: {{ .map.wms.styles }}
+  S3_ENDPOINT: {{ .tilesStorage.s3ClientConfig.endpoint }}
+  S3_REGION: {{ .tilesStorage.s3ClientConfig.region }}
+  S3_FORCE_PATH_STYLE: {{ .tilesStorage.s3ClientConfig.forcePathStyle | quote }}
+  S3_BUCKET: {{ .tilesStorage.s3Bucket }}
+  TILES_STORAGE_LAYOUT_FORMAT: {{ .tilesStorage.layout.format }}
+  TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y: {{ .tilesStorage.layout.shouldFlipY | quote }}
+  {{- end }}
+{{- end }}
