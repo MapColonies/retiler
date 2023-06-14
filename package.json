@@ -1,6 +1,6 @@
 {
   "name": "retiler",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "description": "tiles and stores a web map",
   "main": "./src/index.ts",
   "scripts": {
