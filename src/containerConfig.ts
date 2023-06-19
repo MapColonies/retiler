@@ -3,6 +3,7 @@ import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import axios from 'axios';
+import client from 'prom-client';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
 import PgBoss from 'pg-boss';
@@ -23,6 +24,8 @@ import {
   MAP_FORMAT,
   MAP_PROVIDER_CONFIG,
   QUEUE_EMPTY_TIMEOUT,
+  METRICS_BUCKETS,
+  METRICS_REGISTRY,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { ShutdownHandler } from './common/shutdownHandler';
@@ -66,6 +69,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
+      { token: METRICS_REGISTRY, provider: { useValue: client.register } },
       {
         token: SERVICES.S3,
         provider: {
@@ -101,6 +105,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           await provider.startQueue();
         },
       },
+      { token: METRICS_BUCKETS, provider: { useValue: config.get('telemetry.metrics.buckets') } },
       { token: LIVENESS_PROBE_FACTORY, provider: { useFactory: livenessProbeFactory } },
       { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },

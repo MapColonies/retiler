@@ -11,12 +11,14 @@ export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
 export const MAP_PROVIDER = Symbol('MapProvider');
 export const MAP_SPLITTER_PROVIDER = Symbol('MapSplitterProvider');
 export const TILES_STORAGE_PROVIDER = Symbol('TilesStorageProvider');
+export const METRICS_BUCKETS = Symbol('metrics_buckets');
 
 export const CONSUME_AND_PROCESS_FACTORY = Symbol('ConsumeAndProcessFactory');
 export const LIVENESS_PROBE_FACTORY = Symbol('LivenessProbeFactory');
 
 export const QUEUE_NAME = Symbol('QueueName');
 export const QUEUE_EMPTY_TIMEOUT = Symbol('QueueTimeout');
+export const METRICS_REGISTRY = Symbol('MetricsRegistry');
 
 export const MAP_URL = Symbol('MapURL');
 export const MAP_FORMAT = Symbol('MapFormat');
