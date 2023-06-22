@@ -21,10 +21,6 @@
       "buckets": {
         "__name": "TELEMETRY_METRICS_BUCKETS",
         "__format": "json"
-      },
-      "port": {
-        "__name": "METRICS_PORT",
-        "__format": "number"
       }
     }
   },

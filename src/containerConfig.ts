@@ -69,7 +69,17 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
-      { token: METRICS_REGISTRY, provider: { useValue: client.register } },
+      {
+        token: METRICS_REGISTRY,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+
+            client.register.setDefaultLabels({ project: config.get<string>('app.projectName') });
+            return client.register;
+          }),
+        },
+      },
       {
         token: SERVICES.S3,
         provider: {

@@ -1033,7 +1033,7 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "5s",
+  "refresh": false,
   "schemaVersion": 37,
   "style": "dark",
   "tags": [],
@@ -1060,7 +1060,7 @@
           "query": "label_values(retiler_current_running_job_count,project)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
@@ -1072,19 +1072,19 @@
         "auto_min": "10s",
         "current": {
           "selected": false,
-          "text": "auto",
-          "value": "$__auto_interval_interval"
+          "text": "1m",
+          "value": "1m"
         },
         "hide": 0,
         "name": "interval",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "auto",
             "value": "$__auto_interval_interval"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "1m",
             "value": "1m"
           },
@@ -1145,7 +1145,7 @@
           "query": "label_values(retiler_current_running_job_count,job)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
@@ -1154,13 +1154,13 @@
     ]
   },
   "time": {
-    "from": "now-3h",
-    "to": "now"
+    "from": "2023-06-19T05:42:14.434Z",
+    "to": "2023-06-19T10:08:55.311Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "retiler - instance",
   "uid": "IIFoROXVk",
-  "version": 13,
+  "version": 14,
   "weekStart": ""
 }
