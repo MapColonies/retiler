@@ -1,9 +1,10 @@
 import EventEmitter from 'node:events';
-import { setTimeout as setTimeoutPromise, setImmediate as setImmediatePromise } from 'node:timers/promises';
+import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
+import client from 'prom-client';
 import { Logger } from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
-import { QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
+import { METRICS_REGISTRY, QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
 import { JobQueueProvider } from '../interfaces';
 import { Job } from './interfaces';
 
@@ -20,8 +21,20 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     private readonly pgBoss: PgBoss,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
-    @inject(QUEUE_EMPTY_TIMEOUT) private readonly queueWaitTimeout: number
-  ) {}
+    @inject(QUEUE_EMPTY_TIMEOUT) private readonly queueWaitTimeout: number,
+    @inject(METRICS_REGISTRY) registry: client.Registry
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
+    new client.Gauge({
+      name: 'retiler_current_running_job_count',
+      help: 'The number of jobs currently running',
+      collect(): void {
+        this.set(self.runningJobs);
+      },
+      registers: [registry],
+    });
+  }
 
   public get activeQueueName(): string {
     return this.queueName;
@@ -58,16 +71,18 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       }
 
       this.runningJobs++;
+      this.logger.debug({ msg: 'starting job', runningJobs: this.runningJobs });
+
       void this.handleJob(job, fn);
       if (this.runningJobs >= parallelism) {
         await new Promise<void>((resolve) => {
-          const listner = (): void => {
+          const listener = (): void => {
             if (this.runningJobs < parallelism) {
-              this.jobFinishedEmitter.removeListener(this.jobFinishedEventName, listner);
+              this.jobFinishedEmitter.removeListener(this.jobFinishedEventName, listener);
               resolve();
             }
           };
-          this.jobFinishedEmitter.on(this.jobFinishedEventName, listner);
+          this.jobFinishedEmitter.on(this.jobFinishedEventName, listener);
         });
       }
     }
@@ -81,13 +96,13 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     }
 
     return new Promise((resolve) => {
-      const listner = (): void => {
+      const listener = (): void => {
         if (this.runningJobs === 0) {
-          this.jobFinishedEmitter.removeListener(this.jobFinishedEventName, listner);
+          this.jobFinishedEmitter.removeListener(this.jobFinishedEventName, listener);
           resolve();
         }
       };
-      this.jobFinishedEmitter.on(this.jobFinishedEventName, listner);
+      this.jobFinishedEmitter.on(this.jobFinishedEventName, listener);
     });
   }
 
@@ -103,8 +118,8 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       await this.pgBoss.fail(job.id, error);
     } finally {
       this.runningJobs--;
-      await setImmediatePromise();
-      this.jobFinishedEmitter.emit(this.jobFinishedEventName);
+      this.logger.debug({ msg: 'finished job, emitting job completed event', runningJobs: this.runningJobs });
+      process.nextTick(() => this.jobFinishedEmitter.emit(this.jobFinishedEventName));
     }
   }
 

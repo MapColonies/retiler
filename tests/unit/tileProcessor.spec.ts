@@ -1,4 +1,5 @@
 import jsLogger from '@map-colonies/js-logger';
+import client from 'prom-client';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from '../../src/retiler/interfaces';
 import { TileProcessor } from '../../src/retiler/tileProcessor';
 
@@ -28,7 +29,7 @@ describe('TileProcessor', () => {
         storeTiles,
       };
 
-      processor = new TileProcessor(jsLogger({ enabled: false }), mapProv, mapSplitterProv, tilesStorageProv);
+      processor = new TileProcessor(jsLogger({ enabled: false }), mapProv, mapSplitterProv, tilesStorageProv, [], new client.Registry());
     });
 
     afterEach(function () {
