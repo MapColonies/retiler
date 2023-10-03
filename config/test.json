@@ -24,8 +24,8 @@
           "region": "us-east-1",
           "forcePathStyle": true,
           "credentials": {
-            "accessKeyId": "minioadmin1",
-            "secretAccessKey": "minioadmin1"
+            "accessKeyId": "minioadmin",
+            "secretAccessKey": "minioadmin"
           }
         },
         {
@@ -35,8 +35,8 @@
           "region": "us-east-1",
           "forcePathStyle": true,
           "credentials": {
-            "accessKeyId": "minioadmin2",
-            "secretAccessKey": "minioadmin2"
+            "accessKeyId": "minioadmin",
+            "secretAccessKey": "minioadmin"
           }
         }
       ],
