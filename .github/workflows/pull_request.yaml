@@ -61,7 +61,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      minio1:
+      minio:
         image: bitnami/minio:2022
         env:
           MINIO_ROOT_USER: minioadmin1

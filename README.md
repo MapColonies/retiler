@@ -44,7 +44,29 @@ flowchart TD
 
 `app.map.wms.styles`: styles in which layers are to be rendered, a comma-separated list of style names
 
-`app.tilesStorage.s3Bucket`: the bucket name for tiles storage
+`app.tilesStorage.providers`: an array of tile storage destinations of type `s3` or `fs`, schema is the following:
+- for `s3` type:
+```json
+{
+    "type": "s3",
+    "endpoint": "s3-endpoint",
+    "bucketName": "s3-bucket-name",
+    "region": "s3-region",
+    "forcePathStyle": "boolean flag",
+    "credentials": {
+        "accessKeyId": "s3 access-key-id",
+        "secretAccessKey": "s3 secret-access-key"
+    }
+}
+```
+
+- for `fs` type:
+```json
+{
+    "type": "fs",
+    "basePath": "local tile storage destination path"
+}
+```
 
 `app.tilesStorage.layout.format`: the format of the tile's key in the storage bucket, the z, x, y values of the tile can be retrieved to the key. defaults to `prefix/{z}/{x}/{y}.png`
 e.g. `prefix/{z}/{x}/{y}.png` formated to the tile
