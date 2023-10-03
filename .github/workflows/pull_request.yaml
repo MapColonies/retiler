@@ -99,6 +99,9 @@ jobs:
 
       - name: Run tests
         run: npm run test
+        env:
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
 
       - uses: actions/upload-artifact@v2
         with:
