@@ -29,7 +29,7 @@ import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfa
 
 async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
-  for await (const _unused of setIntervalPromise(10)) {
+  for await (const _unused of setIntervalPromise(100)) {
     const job = await boss.getJobById(jobId);
     if (job?.completedon) {
       return job;
