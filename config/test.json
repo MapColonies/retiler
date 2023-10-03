@@ -27,10 +27,6 @@
             "accessKeyId": "minioadmin",
             "secretAccessKey": "minioadmin"
           }
-        },
-        {
-          "type": "fs",
-          "path": "/tmp/test"
         }
       ],
       "layout": {
