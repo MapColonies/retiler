@@ -81,15 +81,10 @@
       }
     },
     "tilesStorage": {
-      "s3ClientConfig": {
-        "endpoint": "S3_ENDPOINT",
-        "region": "S3_REGION",
-        "forcePathStyle": {
-          "__name": "S3_FORCE_PATH_STYLE",
-          "__format": "boolean"
-        }
+      "providers": {
+        "__name": "TILES_STORAGE_PROVIDERS",
+        "__format": "json"
       },
-      "s3Bucket": "S3_BUCKET",
       "layout": {
         "format": "TILES_STORAGE_LAYOUT_FORMAT",
         "shouldFlipY": {

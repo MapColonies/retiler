@@ -5,9 +5,11 @@ import { TileProcessor } from '../../src/retiler/tileProcessor';
 
 describe('TileProcessor', () => {
   let processor: TileProcessor;
+  let processorWithMultiStores: TileProcessor;
   let mapProv: MapProvider;
   let mapSplitterProv: MapSplitterProvider;
   let tilesStorageProv: TilesStorageProvider;
+  let anotherTilesStorageProv: TilesStorageProvider;
 
   describe('#processTile', () => {
     const getMap = jest.fn();
@@ -29,7 +31,20 @@ describe('TileProcessor', () => {
         storeTiles,
       };
 
-      processor = new TileProcessor(jsLogger({ enabled: false }), mapProv, mapSplitterProv, tilesStorageProv, [], new client.Registry());
+      anotherTilesStorageProv = {
+        storeTile,
+        storeTiles,
+      };
+
+      processor = new TileProcessor(jsLogger({ enabled: false }), mapProv, mapSplitterProv, [tilesStorageProv], new client.Registry(), []);
+      processorWithMultiStores = new TileProcessor(
+        jsLogger({ enabled: false }),
+        mapProv,
+        mapSplitterProv,
+        [tilesStorageProv, anotherTilesStorageProv],
+        new client.Registry(),
+        []
+      );
     });
 
     afterEach(function () {
@@ -50,6 +65,23 @@ describe('TileProcessor', () => {
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+    });
+
+    it('should call all the processing functions in a row and resolve without errors for multi stores processor', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+
+      await expect(processorWithMultiStores.processTile(tile)).resolves.not.toThrow();
+
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(anotherTilesStorageProv.storeTiles).toHaveBeenCalled();
     });
 
     it('should throw error if getting map has failed', async () => {
@@ -94,6 +126,25 @@ describe('TileProcessor', () => {
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+    });
+
+    it('should throw error if storing tiles had failed on at least one of the multi storage processor', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+      const storeTileError = new Error('store tile error');
+      storeTiles.mockResolvedValueOnce(undefined).mockRejectedValue(storeTileError);
+
+      await expect(processorWithMultiStores.processTile(tile)).rejects.toThrow(storeTileError);
+
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(anotherTilesStorageProv.storeTiles).toHaveBeenCalled();
     });
   });
 });

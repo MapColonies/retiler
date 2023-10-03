@@ -16,12 +16,27 @@
       }
     },
     "tilesStorage": {
-      "s3ClientConfig": {
-        "endpoint": "http://minio:9000",
-        "region": "us-east-1",
-        "forcePathStyle": true
-      },
-      "s3Bucket": "test"
+      "providers": [
+        {
+          "type": "s3",
+          "endpoint": "http://minio:9000",
+          "bucketName": "test",
+          "region": "us-east-1",
+          "forcePathStyle": true,
+          "credentials": {
+            "accessKeyId": "minioadmin",
+            "secretAccessKey": "minioadmin"
+          }
+        },
+        {
+          "type": "fs",
+          "path": "/tmp/test"
+        }
+      ]
+    },
+    "layout": {
+      "format": "prefix/{z}/{x}/{y}.png",
+      "shouldFlipY": true
     }
   }
 }

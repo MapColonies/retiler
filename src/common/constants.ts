@@ -10,7 +10,7 @@ export const PROJECT_NAME_SYMBOL = Symbol('projectName');
 export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
 export const MAP_PROVIDER = Symbol('MapProvider');
 export const MAP_SPLITTER_PROVIDER = Symbol('MapSplitterProvider');
-export const TILES_STORAGE_PROVIDER = Symbol('TilesStorageProvider');
+export const TILES_STORAGE_PROVIDERS = Symbol('TilesStorageProviders');
 export const METRICS_BUCKETS = Symbol('metrics_buckets');
 
 export const CONSUME_AND_PROCESS_FACTORY = Symbol('ConsumeAndProcessFactory');

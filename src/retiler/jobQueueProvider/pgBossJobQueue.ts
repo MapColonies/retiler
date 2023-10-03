@@ -15,25 +15,27 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   private runningJobs = 0;
 
   private readonly jobFinishedEmitter = new EventEmitter();
-  private readonly jobFinishedEventName = 'avi';
+  private readonly jobFinishedEventName = 'jobFinished';
 
   public constructor(
     private readonly pgBoss: PgBoss,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
     @inject(QUEUE_EMPTY_TIMEOUT) private readonly queueWaitTimeout: number,
-    @inject(METRICS_REGISTRY) registry: client.Registry
+    @inject(METRICS_REGISTRY) registry?: client.Registry
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    new client.Gauge({
-      name: 'retiler_current_running_job_count',
-      help: 'The number of jobs currently running',
-      collect(): void {
-        this.set(self.runningJobs);
-      },
-      registers: [registry],
-    });
+    if (registry !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const self = this;
+      new client.Gauge({
+        name: 'retiler_current_running_job_count',
+        help: 'The number of jobs currently running',
+        collect(): void {
+          this.set(self.runningJobs);
+        },
+        registers: [registry],
+      });
+    }
   }
 
   public get activeQueueName(): string {

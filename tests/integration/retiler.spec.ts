@@ -5,16 +5,27 @@ import jsLogger from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
 import { DependencyContainer } from 'tsyringe';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
 import PgBoss from 'pg-boss';
 import nock from 'nock';
+import { Tile } from '@map-colonies/tile-calc';
+import Format from 'string-format';
 import httpStatusCodes from 'http-status-codes';
-import { S3Client } from '@aws-sdk/client-s3';
 import { registerExternalValues } from '../../src/containerConfig';
 import { consumeAndProcessFactory } from '../../src/app';
 import { ShutdownHandler } from '../../src/common/shutdownHandler';
-import { JOB_QUEUE_PROVIDER, MAP_URL, METRICS_REGISTRY, QUEUE_NAME, S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../src/common/constants';
+import {
+  JOB_QUEUE_PROVIDER,
+  MAP_URL,
+  METRICS_REGISTRY,
+  QUEUE_NAME,
+  SERVICES,
+  TILES_STORAGE_LAYOUT,
+  TILES_STORAGE_PROVIDERS,
+} from '../../src/common/constants';
 import { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBossJobQueue';
+import { TilesStorageProvider } from '../../src/retiler/interfaces';
+import { getFlippedY } from '../../src/retiler/util';
+import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
 
 async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
@@ -29,6 +40,8 @@ async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBo
 
 describe('retiler', function () {
   let interceptor: nock.Interceptor;
+  let determineKey: (tile: Required<Tile>) => string;
+
   beforeAll(function () {
     const mapUrl = config.get<string>('app.map.url');
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -45,6 +58,21 @@ describe('retiler', function () {
     beforeEach(async () => {
       container = await registerExternalValues({
         override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.map.provider':
+                      return 'arcgis';
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
           { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
@@ -52,6 +80,16 @@ describe('retiler', function () {
         ],
         useChild: true,
       });
+
+      const storageLayout = container.resolve<TileStoragLayout>(TILES_STORAGE_LAYOUT);
+
+      determineKey = (tile: Required<Tile>): string => {
+        if (storageLayout.shouldFlipY) {
+          tile.y = getFlippedY(tile);
+        }
+        const key = Format(storageLayout.format, tile);
+        return key;
+      };
     });
 
     afterEach(async () => {
@@ -70,15 +108,15 @@ describe('retiler', function () {
         const mapBuffer = await readFile('tests/512x512.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
-        const s3Client = container.resolve<S3Client>(SERVICES.S3);
-        const s3SendSpy = jest.spyOn(s3Client, 'send');
-
         const pgBoss = container.resolve(PgBoss);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
         const consumePromise = consumeAndProcessFactory(container)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
         await provider.stopQueue();
@@ -87,12 +125,15 @@ describe('retiler', function () {
 
         expect(job).toHaveProperty('state', 'completed');
 
-        expect(s3SendSpy.mock.calls).toHaveLength(4);
+        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
 
-        for (let i = 0; i < 4; i++) {
-          const test = s3SendSpy.mock.calls[i][0] as PutObjectCommand;
-          const expectedBuffer = await readFile(`tests/integration/expected/${test.input.Key as string}`);
-          expect(expectedBuffer.compare(test.input.Body as Buffer)).toBe(0);
+        for (const storeTileSpy of storeTileSpies) {
+          for (let i = 0; i < 4; i++) {
+            const storeCall = storeTileSpy.mock.calls[i][0];
+            const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+            const expectedBuffer = await readFile(`tests/integration/expected/${key}`);
+            expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+          }
         }
 
         scope.done();
@@ -252,8 +293,8 @@ describe('retiler', function () {
         scope.done();
       });
 
-      it('should fail the job if s3 send had thrown an error', async function () {
-        const bucket = container.resolve<string>(S3_BUCKET);
+      it('should fail the job if tile storage provider storeTile had thrown an error', async function () {
+        // const bucket = container.resolve<string>(S3_BUCKET);
         const mapBuffer = await readFile('tests/2048x2048.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
@@ -262,11 +303,12 @@ describe('retiler', function () {
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        const errorMessage = 's3 error';
-        const s3Client = container.resolve<S3Client>(SERVICES.S3);
-        jest.spyOn(s3Client, 'send').mockRejectedValue(new Error(errorMessage) as never);
+        const error = new Error('storing error');
 
         const consumePromise = consumeAndProcessFactory(container)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        jest.spyOn(storageProviders[0], 'storeTile').mockRejectedValue(error);
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -275,7 +317,7 @@ describe('retiler', function () {
         await expect(consumePromise).resolves.not.toThrow();
 
         expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', `an error occurred during the put of key 0/0/0.png on bucket ${bucket}, ${errorMessage}`);
+        expect(job).toHaveProperty('output.message', error.message);
 
         scope.done();
       });
@@ -342,15 +384,15 @@ describe('retiler', function () {
         const mapBuffer = await readFile('tests/512x512.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
-        const s3Client = container.resolve<S3Client>(SERVICES.S3);
-        const s3SendSpy = jest.spyOn(s3Client, 'send');
-
         const pgBoss = container.resolve(PgBoss);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
         const consumePromise = consumeAndProcessFactory(container)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -360,12 +402,15 @@ describe('retiler', function () {
 
         expect(job).toHaveProperty('state', 'completed');
 
-        expect(s3SendSpy.mock.calls).toHaveLength(4);
+        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
 
-        for (let i = 0; i < 4; i++) {
-          const test = s3SendSpy.mock.calls[i][0] as PutObjectCommand;
-          const expectedBuffer = await readFile(`tests/integration/expected/${test.input.Key as string}`);
-          expect(expectedBuffer.compare(test.input.Body as Buffer)).toBe(0);
+        for (const storeTileSpy of storeTileSpies) {
+          for (let i = 0; i < 4; i++) {
+            const storeCall = storeTileSpy.mock.calls[i][0];
+            const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+            const expectedBuffer = await readFile(`tests/integration/expected/${key}`);
+            expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+          }
         }
 
         scope.done();

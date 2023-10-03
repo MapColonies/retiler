@@ -1,6 +1,6 @@
 import { DependencyContainer, Lifecycle, instancePerContainerCachingFactory } from 'tsyringe';
-import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
-import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
+import jsLogger, { Logger, LoggerOptions } from '@map-colonies/js-logger';
+import { S3Client } from '@aws-sdk/client-s3';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import axios from 'axios';
 import client from 'prom-client';
@@ -14,10 +14,9 @@ import {
   MAP_URL,
   PROJECT_NAME_SYMBOL,
   QUEUE_NAME,
-  S3_BUCKET,
   SERVICES,
   SERVICE_NAME,
-  TILES_STORAGE_PROVIDER,
+  TILES_STORAGE_PROVIDERS,
   TILES_STORAGE_LAYOUT,
   LIVENESS_PROBE_FACTORY,
   CONSUME_AND_PROCESS_FACTORY,
@@ -36,13 +35,14 @@ import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFa
 import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvider';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
-import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
+import { FsStorageProviderConfig, S3StorageProviderConfig, StorageProviderConfig, TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
 import { livenessProbeFactory } from './common/liveness';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
 import { MapProviderType } from './retiler/types';
 import { WmsConfig } from './retiler/mapProvider/wms/requestParams';
 import { IConfig } from './common/interfaces';
+import { FsTilesStorage } from './retiler/tilesStorageProvider/fs';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -75,21 +75,10 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           useFactory: instancePerContainerCachingFactory((container) => {
             const config = container.resolve<IConfig>(SERVICES.CONFIG);
 
-            client.register.setDefaultLabels({ project: config.get<string>('app.projectName') });
-            return client.register;
-          }),
-        },
-      },
-      {
-        token: SERVICES.S3,
-        provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const s3Config = config.get<S3ClientConfig>('app.tilesStorage.s3ClientConfig');
-            const s3Client = new S3Client(s3Config);
-            const shutdownHandler = container.resolve(ShutdownHandler);
-            shutdownHandler.addFunction(s3Client.destroy.bind(s3Client));
-            return s3Client;
+            if (config.get<boolean>('telemetry.metrics.enabled')) {
+              client.register.setDefaultLabels({ project: config.get<string>('app.projectName') });
+              return client.register;
+            }
           }),
         },
       },
@@ -117,15 +106,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       },
       { token: METRICS_BUCKETS, provider: { useValue: config.get('telemetry.metrics.buckets') } },
       { token: LIVENESS_PROBE_FACTORY, provider: { useFactory: livenessProbeFactory } },
-      { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
       { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
       { token: SERVICES.HTTP_CLIENT, provider: { useValue: axiosClient } },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
       { token: MAP_FORMAT, provider: { useValue: config.get<string>('app.map.format') } },
-      { token: S3_BUCKET, provider: { useValue: config.get<string>('app.tilesStorage.s3Bucket') } },
       { token: TILES_STORAGE_LAYOUT, provider: { useValue: config.get<TileStoragLayout>('app.tilesStorage.layout') } },
       { token: MAP_SPLITTER_PROVIDER, provider: { useClass: SharpMapSplitter } },
-      { token: TILES_STORAGE_PROVIDER, provider: { useClass: S3TilesStorage } },
       {
         token: MAP_PROVIDER_CONFIG,
         provider: { useValue: config.get<WmsConfig>('app.map.wms') },
@@ -141,6 +127,39 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           return Promise.resolve();
         },
       },
+      {
+        token: TILES_STORAGE_PROVIDERS,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            const logger = container.resolve<Logger>(SERVICES.LOGGER);
+            const storageProvidersConfig = config.get<StorageProviderConfig[]>('app.tilesStorage.providers');
+            const tilesStorageLayout = config.get<TileStoragLayout>('app.tilesStorage.layout');
+            const s3ClientsMap = new Map<string, S3Client>();
+
+            const storageProviders = storageProvidersConfig.map((providerConfig) => {
+              if (providerConfig.type === 's3') {
+                const { type, bucketName, ...clientConfig } = providerConfig as S3StorageProviderConfig;
+                let s3Client = s3ClientsMap.get(clientConfig.endpoint);
+
+                if (!s3Client) {
+                  s3Client = new S3Client(clientConfig);
+                  s3ClientsMap.set(clientConfig.endpoint, s3Client);
+                  shutdownHandler.addFunction(s3Client.destroy.bind(s3Client));
+                }
+
+                return new S3TilesStorage(s3Client, logger, bucketName, tilesStorageLayout);
+              }
+
+              const { basePath } = providerConfig as FsStorageProviderConfig;
+              return new FsTilesStorage(logger, basePath, tilesStorageLayout);
+            });
+
+            container.register(TILES_STORAGE_PROVIDERS, { useValue: storageProviders });
+          }),
+        },
+      },
+      { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
     ];
 
     const container = await registerDependencies(dependencies, options?.override, options?.useChild);
