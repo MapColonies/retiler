@@ -53,8 +53,8 @@ describe('PgBossJobQueueProvider', () => {
       await expect(provider.stopQueue()).resolves.not.toThrow();
     });
 
-    it('should throw if the queue is stopped when it was never started', async () => {
-      await expect(provider.stopQueue()).rejects.toThrow();
+    it('should resolve if the queue is stopped when it was never started', async () => {
+      await expect(provider.stopQueue()).resolves.not.toThrow();
     });
   });
 

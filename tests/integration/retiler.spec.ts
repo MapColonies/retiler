@@ -10,9 +10,9 @@ import nock from 'nock';
 import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
 import httpStatusCodes from 'http-status-codes';
+import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { registerExternalValues } from '../../src/containerConfig';
 import { consumeAndProcessFactory } from '../../src/app';
-import { ShutdownHandler } from '../../src/common/shutdownHandler';
 import {
   JOB_QUEUE_PROVIDER,
   MAP_URL,
@@ -98,8 +98,8 @@ describe('retiler', function () {
     });
 
     afterAll(async () => {
-      const shutdownhandler = container.resolve(ShutdownHandler);
-      await shutdownhandler.shutdown();
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
       container.reset();
     });
 
@@ -374,8 +374,8 @@ describe('retiler', function () {
     });
 
     afterAll(async () => {
-      const shutdownhandler = container.resolve(ShutdownHandler);
-      await shutdownhandler.shutdown();
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
       container.reset();
     });
 

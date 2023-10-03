@@ -6,6 +6,8 @@ export const DEFAULT_PORT = 8080;
 export const IGNORED_OUTGOING_TRACE_ROUTES = [/^.*\/v1\/metrics.*$/];
 export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/, /^.*\/metrics.*/];
 
+export const ON_SIGNAL = Symbol('onSignal');
+
 export const PROJECT_NAME_SYMBOL = Symbol('projectName');
 export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
 export const MAP_PROVIDER = Symbol('MapProvider');
@@ -37,6 +39,7 @@ export const SERVICES: Record<string, symbol> = {
   METER: Symbol('Meter'),
   S3: Symbol('S3'),
   HTTP_CLIENT: Symbol('HttpClient'),
+  CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
 };
 
 export const ExitCodes: Record<string, number> = {

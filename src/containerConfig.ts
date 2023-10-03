@@ -1,12 +1,12 @@
 import { DependencyContainer, Lifecycle, instancePerContainerCachingFactory } from 'tsyringe';
-import jsLogger, { Logger, LoggerOptions } from '@map-colonies/js-logger';
-import { S3Client } from '@aws-sdk/client-s3';
+import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import axios from 'axios';
 import client from 'prom-client';
 import { trace } from '@opentelemetry/api';
 import config from 'config';
 import PgBoss from 'pg-boss';
+import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import {
   JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
@@ -25,24 +25,23 @@ import {
   QUEUE_EMPTY_TIMEOUT,
   METRICS_BUCKETS,
   METRICS_REGISTRY,
+  ON_SIGNAL,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { ShutdownHandler } from './common/shutdownHandler';
 import { tracing } from './common/tracing';
 import { JobQueueProvider } from './retiler/interfaces';
 import { PgBossJobQueueProvider } from './retiler/jobQueueProvider/pgBossJobQueue';
 import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFactory';
 import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvider';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
-import { S3TilesStorage } from './retiler/tilesStorageProvider/s3';
-import { FsStorageProviderConfig, S3StorageProviderConfig, StorageProviderConfig, TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
+import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
 import { livenessProbeFactory } from './common/liveness';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
 import { MapProviderType } from './retiler/types';
 import { WmsConfig } from './retiler/mapProvider/wms/requestParams';
 import { IConfig } from './common/interfaces';
-import { FsTilesStorage } from './retiler/tilesStorageProvider/fs';
+import { tilesStorageProvidersFactory } from './retiler/tilesStorageProvider/factory';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -50,7 +49,8 @@ export interface RegisterOptions {
 }
 
 export const registerExternalValues = async (options?: RegisterOptions): Promise<DependencyContainer> => {
-  const shutdownHandler = new ShutdownHandler();
+  const cleanupRegistry = new CleanupRegistry();
+
   try {
     const queueName = config.get<string>('app.queueName');
     const queueTimeout = config.get<number>('app.jobQueue.waitTimeout');
@@ -58,14 +58,20 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
     const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin(), base: { queue: queueName } });
 
+    cleanupRegistry.on('itemFailed', (id, error, msg) => logger.error({ msg, itemId: id, err: error }));
+    cleanupRegistry.on('finished', (status) => logger.info({ msg: `cleanup registry finished cleanup`, status }));
+
     const tracer = trace.getTracer(SERVICE_NAME);
-    shutdownHandler.addFunction(tracing.stop.bind(tracing));
+    cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
 
     const mapClientTimeout = config.get<number>('app.map.client.timeoutMs');
     const axiosClient = axios.create({ timeout: mapClientTimeout });
 
     const dependencies: InjectionObject<unknown>[] = [
-      { token: ShutdownHandler, provider: { useValue: shutdownHandler } },
+      {
+        token: SERVICES.CLEANUP_REGISTRY,
+        provider: { useValue: cleanupRegistry },
+      },
       { token: SERVICES.CONFIG, provider: { useValue: config } },
       { token: SERVICES.LOGGER, provider: { useValue: logger } },
       { token: SERVICES.TRACER, provider: { useValue: tracer } },
@@ -100,7 +106,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         options: { lifecycle: Lifecycle.Singleton },
         postInjectionHook: async (deps: DependencyContainer): Promise<void> => {
           const provider = deps.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
-          shutdownHandler.addFunction(provider.stopQueue.bind(provider));
+          cleanupRegistry.register({ func: provider.stopQueue.bind(provider), id: JOB_QUEUE_PROVIDER });
           await provider.startQueue();
         },
       },
@@ -127,45 +133,20 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           return Promise.resolve();
         },
       },
+      { token: TILES_STORAGE_PROVIDERS, provider: { useFactory: instancePerContainerCachingFactory(tilesStorageProvidersFactory) } },
+      { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
       {
-        token: TILES_STORAGE_PROVIDERS,
+        token: ON_SIGNAL,
         provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const logger = container.resolve<Logger>(SERVICES.LOGGER);
-            const storageProvidersConfig = config.get<StorageProviderConfig[]>('app.tilesStorage.providers');
-            const tilesStorageLayout = config.get<TileStoragLayout>('app.tilesStorage.layout');
-            const s3ClientsMap = new Map<string, S3Client>();
-
-            const storageProviders = storageProvidersConfig.map((providerConfig) => {
-              if (providerConfig.type === 's3') {
-                const { type, bucketName, ...clientConfig } = providerConfig as S3StorageProviderConfig;
-                let s3Client = s3ClientsMap.get(clientConfig.endpoint);
-
-                if (!s3Client) {
-                  s3Client = new S3Client(clientConfig);
-                  s3ClientsMap.set(clientConfig.endpoint, s3Client);
-                  shutdownHandler.addFunction(s3Client.destroy.bind(s3Client));
-                }
-
-                return new S3TilesStorage(s3Client, logger, bucketName, tilesStorageLayout);
-              }
-
-              const { basePath } = providerConfig as FsStorageProviderConfig;
-              return new FsTilesStorage(logger, basePath, tilesStorageLayout);
-            });
-
-            container.register(TILES_STORAGE_PROVIDERS, { useValue: storageProviders });
-          }),
+          useValue: cleanupRegistry.trigger.bind(cleanupRegistry),
         },
       },
-      { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
     ];
 
     const container = await registerDependencies(dependencies, options?.override, options?.useChild);
     return container;
   } catch (error) {
-    await shutdownHandler.shutdown();
+    await cleanupRegistry.trigger();
     throw error;
   }
 };

@@ -57,7 +57,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   public async stopQueue(): Promise<void> {
     this.logger.debug({ msg: 'stopping queue' });
     if (!this.isRunning || this.isDraining) {
-      throw new Error('queue is already stopped');
+      return;
     }
     this.isDraining = true;
     await this.waitForQueueToEmpty();

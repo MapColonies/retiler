@@ -7,8 +7,16 @@ import { Registry } from 'prom-client';
 import { metricsMiddleware } from '@map-colonies/telemetry';
 import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
-import { CONSUME_AND_PROCESS_FACTORY, DEFAULT_PORT, ExitCodes, LIVENESS_PROBE_FACTORY, METRICS_REGISTRY, SERVICES } from './common/constants';
-import { ShutdownHandler } from './common/shutdownHandler';
+import { CleanupRegistry } from '@map-colonies/cleanup-registry';
+import {
+  CONSUME_AND_PROCESS_FACTORY,
+  DEFAULT_PORT,
+  ExitCodes,
+  LIVENESS_PROBE_FACTORY,
+  METRICS_REGISTRY,
+  ON_SIGNAL,
+  SERVICES,
+} from './common/constants';
 import { registerExternalValues } from './containerConfig';
 import { IConfig, IServerConfig } from './common/interfaces';
 import { LivenessFactory } from './common/liveness';
@@ -18,8 +26,9 @@ let depContainer: DependencyContainer | undefined;
 void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
+
     const config = container.resolve<IConfig>(SERVICES.CONFIG);
-    const shutdownHandler = container.resolve(ShutdownHandler);
+    const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
     const livenessFactory = container.resolve<LivenessFactory>(LIVENESS_PROBE_FACTORY);
     const registry = container.resolve<Registry>(METRICS_REGISTRY);
 
@@ -29,11 +38,13 @@ void registerExternalValues()
 
     const server = livenessFactory(createServer(app));
 
-    shutdownHandler.addFunction(async () => {
-      return new Promise((resolve) => {
-        server.once('close', resolve);
-        server.close();
-      });
+    cleanupRegistry.register({
+      func: async () => {
+        return new Promise((resolve) => {
+          server.once('close', resolve);
+          server.close();
+        });
+      },
     });
 
     const serverConfig = config.get<IServerConfig>('server');
@@ -54,9 +65,9 @@ void registerExternalValues()
         : console.error;
     errorLogger({ msg: 'an unexpected error occurred', err: error });
 
-    if (depContainer?.isRegistered(ShutdownHandler) === true) {
-      const shutdownHandler = depContainer.resolve(ShutdownHandler);
-      await shutdownHandler.shutdown();
+    if (depContainer?.isRegistered(ON_SIGNAL) === true) {
+      const shutDown: () => Promise<void> = depContainer.resolve(ON_SIGNAL);
+      await shutDown();
     }
 
     process.exit(ExitCodes.GENERAL_ERROR);
