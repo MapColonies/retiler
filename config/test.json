@@ -32,11 +32,11 @@
           "type": "fs",
           "path": "/tmp/test"
         }
-      ]
-    },
-    "layout": {
-      "format": "prefix/{z}/{x}/{y}.png",
-      "shouldFlipY": true
+      ],
+      "layout": {
+        "format": "prefix/{z}/{x}/{y}.png",
+        "shouldFlipY": true
+      }
     }
   }
 }
