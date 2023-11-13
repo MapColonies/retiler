@@ -5,9 +5,10 @@ import { S3StorageProviderConfig, StorageProviderConfig } from '../../../src/ret
 
 export default async (): Promise<void> => {
   const storageProvidersConfig = config.get<StorageProviderConfig[]>('app.tilesStorage.providers');
-  for await (const provider of storageProvidersConfig) {
+
+  const promises = storageProvidersConfig.map(async (provider) => {
     if (provider.type !== 's3') {
-      return;
+      return Promise.resolve();
     }
 
     console.log(provider);
@@ -27,5 +28,7 @@ export default async (): Promise<void> => {
       console.log(`create bucket ${bucketName}`);
       await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
     }
-  }
+  });
+
+  await Promise.all(promises);
 };
