@@ -68,14 +68,6 @@ jobs:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
         ports:
-          - 9000:9000
-
-      minio2:
-        image: bitnami/minio:2022
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-        ports:
           - 9001:9000
 
     strategy:
