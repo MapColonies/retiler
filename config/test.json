@@ -19,7 +19,7 @@
       "providers": [
         {
           "type": "s3",
-          "endpoint": "http://minioone:9000",
+          "endpoint": "http://minio1:9000",
           "bucketName": "test1",
           "region": "us-east-1",
           "forcePathStyle": true,
@@ -30,7 +30,7 @@
         },
         {
           "type": "s3",
-          "endpoint": "http://miniotwo:9001",
+          "endpoint": "http://minio2:9001",
           "bucketName": "test2",
           "region": "us-east-1",
           "forcePathStyle": true,
