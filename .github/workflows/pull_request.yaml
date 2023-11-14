@@ -68,8 +68,6 @@ jobs:
           MINIO_ROOT_USER: minioadmin1
           MINIO_ROOT_PASSWORD: minioadmin1
           MINIO_API_PORT_NUMBER: '9003'
-        ports:
-          - 9000:9000
         options: >-
           --health-cmd "curl -f http://localhost:9003/minio/health/live"
           --health-interval 10s
@@ -82,8 +80,6 @@ jobs:
           MINIO_ROOT_USER: minioadmin2
           MINIO_ROOT_PASSWORD: minioadmin2
           MINIO_API_PORT_NUMBER: '9004'
-        ports:
-          - 9001:9000
         options: >-
           --health-cmd "curl -f http://localhost:9004/minio/health/live"
           --health-interval 10s

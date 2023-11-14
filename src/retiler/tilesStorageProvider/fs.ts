@@ -16,11 +16,13 @@ export class FsTilesStorage implements TilesStorageProvider {
   }
 
   public async storeTile(tileWithBuffer: TileWithBuffer): Promise<void> {
+    console.log(tileWithBuffer);
     const { buffer, parent, ...baseTile } = tileWithBuffer;
 
     const key = this.determineKey(baseTile);
 
     this.logger.debug({ msg: 'storing tile in fs', tile: baseTile, parent, baseStoragePath: this.baseStoragePath, key });
+    console.log({ msg: 'storing tile in fs', tile: baseTile, parent, baseStoragePath: this.baseStoragePath, key });
 
     const storagePath = join(this.baseStoragePath, key);
 
