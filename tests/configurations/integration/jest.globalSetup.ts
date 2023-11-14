@@ -25,8 +25,13 @@ export default async (): Promise<void> => {
       if (s3Error.name !== 'NotFound') {
         throw s3Error;
       }
-      console.log(`create bucket ${bucketName}`);
-      await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+      try {
+        console.log(`create bucket ${bucketName}`);
+        await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+      } catch (e) {
+        console.log(e);
+        throw e;
+      }
     }
   });
 
