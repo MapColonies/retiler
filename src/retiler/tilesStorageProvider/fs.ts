@@ -40,6 +40,7 @@ export class FsTilesStorage implements TilesStorageProvider {
         parent,
         key,
       });
+      console.log(error);
       throw new Error(`an error occurred during the write of key ${key}, ${fsError.message}`);
     }
   }

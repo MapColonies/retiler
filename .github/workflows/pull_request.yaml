@@ -70,6 +70,11 @@ jobs:
           MINIO_API_PORT_NUMBER: '9003'
         ports:
           - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
       minio2:
         image: bitnami/minio:2022
@@ -79,6 +84,11 @@ jobs:
           MINIO_API_PORT_NUMBER: '9004'
         ports:
           - 9001:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     strategy:
       matrix:
