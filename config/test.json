@@ -18,28 +18,6 @@
     "tilesStorage": {
       "providers": [
         {
-          "type": "s3",
-          "endpoint": "http://minio1:9003",
-          "bucketName": "test1",
-          "region": "us-east-1",
-          "forcePathStyle": true,
-          "credentials": {
-            "accessKeyId": "minioadmin1",
-            "secretAccessKey": "minioadmin1"
-          }
-        },
-        {
-          "type": "s3",
-          "endpoint": "http://minio2:9004",
-          "bucketName": "test2",
-          "region": "us-east-1",
-          "forcePathStyle": true,
-          "credentials": {
-            "accessKeyId": "minioadmin2",
-            "secretAccessKey": "minioadmin2"
-          }
-        },
-        {
           "type": "fs",
           "path": "/tmp/test"
         }

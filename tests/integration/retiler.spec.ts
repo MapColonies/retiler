@@ -294,7 +294,6 @@ describe('retiler', function () {
       });
 
       it('should fail the job if tile storage provider storeTile had thrown an error', async function () {
-        // const bucket = container.resolve<string>(S3_BUCKET);
         const mapBuffer = await readFile('tests/2048x2048.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
