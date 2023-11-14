@@ -19,13 +19,13 @@
       "providers": [
         {
           "type": "s3",
-          "endpoint": "http://minio1:9000",
+          "endpoint": "http://minio1:9001",
           "bucketName": "test1",
           "region": "us-east-1",
           "forcePathStyle": true,
           "credentials": {
-            "accessKeyId": "minioadmin",
-            "secretAccessKey": "minioadmin"
+            "accessKeyId": "minioadmin1",
+            "secretAccessKey": "minioadmin1"
           }
         }
       ],

@@ -65,10 +65,10 @@ jobs:
       minio1:
         image: bitnami/minio:2022
         env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_ROOT_USER: minioadmin1
+          MINIO_ROOT_PASSWORD: minioadmin1
         ports:
-          - 9000:9000
+          - 9000:9001
 
     strategy:
       matrix:
