@@ -68,7 +68,7 @@ jobs:
           MINIO_ROOT_USER: minioadmin1
           MINIO_ROOT_PASSWORD: minioadmin1
         ports:
-          - 9000:9001
+          - 9000:9000
 
     strategy:
       matrix:
