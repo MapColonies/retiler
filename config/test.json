@@ -19,7 +19,7 @@
       "providers": [
         {
           "type": "fs",
-          "path": "/tmp/test"
+          "basePath": "/tmp/test"
         }
       ],
       "layout": {
