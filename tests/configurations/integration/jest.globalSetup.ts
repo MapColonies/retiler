@@ -11,27 +11,17 @@ export default async (): Promise<void> => {
       return Promise.resolve();
     }
 
-    console.log(provider);
-
     const { type, bucketName, ...clientConfig } = provider as S3StorageProviderConfig;
     const s3Client = new S3Client(clientConfig);
 
     try {
-      console.log(`head bucket ${bucketName}`);
       await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
     } catch (error) {
-      console.log(error);
       const s3Error = error as Error;
       if (s3Error.name !== 'NotFound') {
         throw s3Error;
       }
-      try {
-        console.log(`create bucket ${bucketName}`);
-        await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
-      } catch (e) {
-        console.log(e);
-        throw e;
-      }
+      await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
     }
   });
 
