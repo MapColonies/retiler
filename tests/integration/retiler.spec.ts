@@ -123,7 +123,6 @@ describe('retiler', function () {
 
         await expect(consumePromise).resolves.not.toThrow();
 
-        console.log(job);
         expect(job).toHaveProperty('state', 'completed');
 
         storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
