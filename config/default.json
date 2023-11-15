@@ -48,7 +48,7 @@
     "tilesStorage": {
       "providers": [
         {
-          "type": "s3",
+          "kind": "s3",
           "endpoint": "http://s3-domain/",
           "bucketName": "bucket-name",
           "region": "region",

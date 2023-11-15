@@ -18,7 +18,7 @@
     "tilesStorage": {
       "providers": [
         {
-          "type": "s3",
+          "kind": "s3",
           "endpoint": "http://minio1:9003",
           "bucketName": "test1",
           "region": "us-east-1",
@@ -29,7 +29,7 @@
           }
         },
         {
-          "type": "s3",
+          "kind": "s3",
           "endpoint": "http://minio2:9004",
           "bucketName": "test2",
           "region": "us-east-1",
@@ -40,7 +40,7 @@
           }
         },
         {
-          "type": "fs",
+          "kind": "fs",
           "basePath": "/tmp/test"
         }
       ],

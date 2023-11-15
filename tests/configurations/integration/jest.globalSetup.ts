@@ -7,11 +7,11 @@ export default async (): Promise<void> => {
   const storageProvidersConfig = config.get<StorageProviderConfig[]>('app.tilesStorage.providers');
 
   const promises = storageProvidersConfig.map(async (provider) => {
-    if (provider.type !== 's3') {
+    if (provider.kind !== 's3') {
       return Promise.resolve();
     }
 
-    const { type, bucketName, ...clientConfig } = provider as S3StorageProviderConfig;
+    const { kind, bucketName, ...clientConfig } = provider as S3StorageProviderConfig;
     const s3Client = new S3Client(clientConfig);
 
     try {

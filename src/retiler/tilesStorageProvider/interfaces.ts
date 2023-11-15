@@ -1,6 +1,6 @@
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 
-type StorageProviderType = 's3' | 'fs';
+type StorageProviderKind = 's3' | 'fs';
 
 export interface TileStoragLayout {
   format: string;
@@ -10,12 +10,12 @@ export interface TileStoragLayout {
 export type StorageProviderConfig = S3StorageProviderConfig | FsStorageProviderConfig;
 
 export interface S3StorageProviderConfig extends S3ClientConfig {
+  kind: StorageProviderKind;
   endpoint: string;
-  type: StorageProviderType;
   bucketName: string;
 }
 
 export interface FsStorageProviderConfig {
-  type: StorageProviderType;
+  kind: StorageProviderKind;
   basePath: string;
 }

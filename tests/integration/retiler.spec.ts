@@ -1,5 +1,5 @@
+import * as fsPromises from 'fs/promises';
 import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import { readFile } from 'fs/promises';
 import client from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
@@ -27,6 +27,27 @@ import { TilesStorageProvider } from '../../src/retiler/interfaces';
 import { getFlippedY } from '../../src/retiler/util';
 import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
 
+const s3SendMock = jest.fn();
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+jest.mock('fs/promises', () => ({
+  ...jest.requireActual('fs/promises'),
+  writeFile: jest.fn(),
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+jest.mock('@aws-sdk/client-s3', () => ({
+  ...jest.requireActual('@aws-sdk/client-s3'),
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  S3Client: jest.fn().mockImplementation(() => ({
+    send: s3SendMock,
+    destroy: jest.fn(),
+    config: {
+      endpoint: jest.fn().mockResolvedValue('test-endpoint'),
+    },
+  })),
+}));
+
 async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
   for await (const _unused of setIntervalPromise(10)) {
@@ -50,6 +71,7 @@ describe('retiler', function () {
 
   afterEach(function () {
     nock.removeInterceptor(interceptor);
+    jest.clearAllMocks();
   });
 
   describe('arcgis', function () {
@@ -105,7 +127,7 @@ describe('retiler', function () {
 
     describe('Happy Path', function () {
       it('should complete a single job', async function () {
-        const mapBuffer = await readFile('tests/512x512.png');
+        const mapBuffer = await fsPromises.readFile('tests/512x512.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
         const pgBoss = container.resolve(PgBoss);
@@ -131,7 +153,7 @@ describe('retiler', function () {
           for (let i = 0; i < 4; i++) {
             const storeCall = storeTileSpy.mock.calls[i][0];
             const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
-            const expectedBuffer = await readFile(`tests/integration/expected/${key}`);
+            const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
             expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
           }
         }
@@ -140,7 +162,7 @@ describe('retiler', function () {
       });
 
       it('should complete multiple jobs', async function () {
-        const mapBuffer = await readFile('tests/2048x2048.png');
+        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
 
         const pgBoss = container.resolve(PgBoss);
@@ -172,7 +194,7 @@ describe('retiler', function () {
       });
 
       it('should complete running jobs', async function () {
-        const mapBuffer = await readFile('tests/2048x2048.png');
+        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
 
         const pgBoss = container.resolve(PgBoss);
@@ -196,7 +218,7 @@ describe('retiler', function () {
       });
 
       it('should complete some jobs even when one fails', async function () {
-        const mapBuffer = await readFile('tests/2048x2048.png');
+        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
 
         const pgBoss = container.resolve(PgBoss);
@@ -294,7 +316,7 @@ describe('retiler', function () {
       });
 
       it('should fail the job if tile storage provider storeTile had thrown an error', async function () {
-        const mapBuffer = await readFile('tests/2048x2048.png');
+        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
         const pgBoss = container.resolve(PgBoss);
@@ -317,6 +339,64 @@ describe('retiler', function () {
 
         expect(job).toHaveProperty('state', 'failed');
         expect(job).toHaveProperty('output.message', error.message);
+
+        scope.done();
+      });
+
+      it('should fail the job if s3 tile storage provider storeTile had thrown an error', async function () {
+        const errorMessage = 'send error';
+        const error = new Error(errorMessage);
+
+        s3SendMock.mockRejectedValueOnce(error);
+
+        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
+        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        const jobOutput = job?.output as object as { [index: string]: string };
+        expect(jobOutput['message']).toContain(error.message);
+
+        scope.done();
+      });
+
+      it('should fail the job if fs tile storage provider storeTile had thrown an error', async function () {
+        const errorMessage = 'write error';
+        const error = new Error(errorMessage);
+
+        (fsPromises.writeFile as jest.Mock).mockRejectedValueOnce(error);
+
+        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
+        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        const jobOutput = job?.output as object as { [index: string]: string };
+        expect(jobOutput['message']).toContain(error.message);
 
         scope.done();
       });
@@ -380,7 +460,7 @@ describe('retiler', function () {
 
     describe('happy path', function () {
       it('should complete a single job', async function () {
-        const mapBuffer = await readFile('tests/512x512.png');
+        const mapBuffer = await fsPromises.readFile('tests/512x512.png');
         const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
 
         const pgBoss = container.resolve(PgBoss);
@@ -407,7 +487,7 @@ describe('retiler', function () {
           for (let i = 0; i < 4; i++) {
             const storeCall = storeTileSpy.mock.calls[i][0];
             const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
-            const expectedBuffer = await readFile(`tests/integration/expected/${key}`);
+            const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
             expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
           }
         }
