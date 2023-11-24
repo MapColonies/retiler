@@ -5,6 +5,7 @@
       "prettyPrint": false
     },
     "metrics": {
+      "enabled": true,
       "buckets": [0.1, 0.5, 1, 5, 15, 50, 250, 500]
     }
   },
@@ -45,16 +46,23 @@
       }
     },
     "tilesStorage": {
-      "s3ClientConfig": {
-        "endpoint": "http://s3-domain/",
-        "region": "region",
-        "forcePathStyle": true
-      },
-      "s3Bucket": "bucket-name",
-      "layout": {
-        "format": "prefix/{z}/{x}/{y}.png",
-        "shouldFlipY": true
-      }
+      "providers": [
+        {
+          "kind": "s3",
+          "endpoint": "http://s3-domain/",
+          "bucketName": "bucket-name",
+          "region": "region",
+          "forcePathStyle": true,
+          "credentials": {
+            "accessKeyId": "accessKeyId",
+            "secretAccessKey": "secret"
+          }
+        }
+      ]
+    },
+    "layout": {
+      "format": "prefix/{z}/{x}/{y}.png",
+      "shouldFlipY": true
     }
   }
 }

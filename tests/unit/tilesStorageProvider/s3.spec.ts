@@ -2,7 +2,17 @@ import { S3Client } from '@aws-sdk/client-s3';
 import jsLogger from '@map-colonies/js-logger';
 import { S3TilesStorage } from '../../../src/retiler/tilesStorageProvider/s3';
 
-jest.mock('@aws-sdk/client-s3');
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+jest.mock('@aws-sdk/client-s3', () => ({
+  ...jest.requireActual('@aws-sdk/client-s3'),
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  S3Client: jest.fn().mockImplementation(() => ({
+    send: jest.fn(),
+    config: {
+      endpoint: jest.fn().mockResolvedValue('test-endpoint'),
+    },
+  })),
+}));
 
 describe('S3TilesStorage', () => {
   let storage: S3TilesStorage;

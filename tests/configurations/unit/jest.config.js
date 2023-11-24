@@ -19,6 +19,8 @@ module.exports = {
     '!**/routes/**',
     '!<rootDir>/src/*',
     '!**/pgbossFactory.ts',
+    '!**/tilesStorageProvider/factory.ts',
+    '!**/tilesStorageProvider/validation.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
   rootDir: '../../../.',
