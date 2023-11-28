@@ -54,20 +54,34 @@ env:
       version: 1.3.0
       layers: MAP_WMS_LAYERS
       styles: MAP_WMS_STYLES
-    client: 
+    client:
       timeoutMs: 60000
-  tilesStorage: 
-    s3ClientConfig: 
-      endpoint: http://s3-domain/
-      region: region
-      forcePathStyle: true
-      accessKey: accessKey
-      secretKey: secretKey
-    s3Bucket: bucket-name
-    layout: 
+  tilesStorage:
+    providers: |-
+      [
+        {
+          "kind": "s3",
+          "endpoint": "http://s3-domain/",
+          "bucketName": "bucketName",
+          "region": "region",
+          "forcePathStyle": true,
+          "credentials": {
+            "accessKeyId": "accessKeyId",
+            "secretAccessKey": "secret"
+          }
+        }
+      ]
+    layout:
       format: prefix/{z}/{x}/{y}.png
       shouldFlipY: true
-      
+  tracing:
+    enabled: false
+    url: http://localhost:55681/v1/trace
+    ratio: 1
+  metrics:
+    enabled: false
+    url: http://localhost:55681/v1/metrics
+
 resources:
   enabled: true
   value:
