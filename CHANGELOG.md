@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.0.0](https://github.com/MapColonies/retiler/compare/v2.1.0...v3.0.0) (2023-12-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* multi tile storage destinations including fs (#30)
+
+### Features
+
+* multi tile storage destinations including fs ([#30](https://github.com/MapColonies/retiler/issues/30)) ([b2e3126](https://github.com/MapColonies/retiler/commit/b2e3126d768fa3e1d9011eab2e0e352d5c5e1d60))
+
+
+### Bug Fixes
+
+* **configurations:** helm templates and values up to date ([#32](https://github.com/MapColonies/retiler/issues/32)) ([6c0d2ad](https://github.com/MapColonies/retiler/commit/6c0d2add173197f1ea077708bf6e715c424d0bc3))
+
 ## [2.1.0](https://github.com/MapColonies/retiler/compare/v2.0.0...v2.1.0) (2023-06-22)
 
 
