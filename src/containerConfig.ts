@@ -1,5 +1,5 @@
 import { DependencyContainer, Lifecycle, instancePerContainerCachingFactory } from 'tsyringe';
-import jsLogger, { LoggerOptions } from '@map-colonies/js-logger';
+import jsLogger, { Logger, LoggerOptions } from '@map-colonies/js-logger';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import axios from 'axios';
 import client from 'prom-client';
@@ -7,12 +7,12 @@ import { trace } from '@opentelemetry/api';
 import config from 'config';
 import PgBoss from 'pg-boss';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
+import { DetilerClient, DetilerClientConfig } from '@map-colonies/detiler-client';
 import {
   JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
   MAP_SPLITTER_PROVIDER,
   MAP_URL,
-  PROJECT_NAME_SYMBOL,
   QUEUE_NAME,
   SERVICES,
   SERVICE_NAME,
@@ -55,26 +55,37 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
     const queueName = config.get<string>('app.queueName');
     const queueTimeout = config.get<number>('app.jobQueue.waitTimeout');
 
-    const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
-    const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin(), base: { queue: queueName } });
-
-    cleanupRegistry.on('itemFailed', (id, error, msg) => logger.error({ msg, itemId: id, err: error }));
-    cleanupRegistry.on('finished', (status) => logger.info({ msg: `cleanup registry finished cleanup`, status }));
-
-    const tracer = trace.getTracer(SERVICE_NAME);
-    cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
-
-    const mapClientTimeout = config.get<number>('app.map.client.timeoutMs');
-    const axiosClient = axios.create({ timeout: mapClientTimeout });
-
     const dependencies: InjectionObject<unknown>[] = [
+      {
+        token: SERVICES.LOGGER,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
+            const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin(), base: { queue: queueName } });
+            const cleanupRegistryLogger = logger.child({ subComponent: 'cleanupRegistry' });
+            cleanupRegistry.on('itemFailed', (id, error, msg) => cleanupRegistryLogger.error({ msg, itemId: id, err: error }));
+            cleanupRegistry.on('finished', (status) => cleanupRegistryLogger.info({ msg: `cleanup registry finished cleanup`, status }));
+            return logger;
+          }),
+        },
+      },
       {
         token: SERVICES.CLEANUP_REGISTRY,
         provider: { useValue: cleanupRegistry },
       },
       { token: SERVICES.CONFIG, provider: { useValue: config } },
-      { token: SERVICES.LOGGER, provider: { useValue: logger } },
-      { token: SERVICES.TRACER, provider: { useValue: tracer } },
+      {
+        token: SERVICES.TRACER,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const tracer = trace.getTracer(SERVICE_NAME);
+            const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+            cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
+            return tracer;
+          }),
+        },
+      },
       {
         token: METRICS_REGISTRY,
         provider: {
@@ -82,7 +93,7 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
             const config = container.resolve<IConfig>(SERVICES.CONFIG);
 
             if (config.get<boolean>('telemetry.metrics.enabled')) {
-              client.register.setDefaultLabels({ project: config.get<string>('app.projectName') });
+              client.register.setDefaultLabels({ project: config.get<string>('app.project.name') });
               return client.register;
             }
           }),
@@ -112,8 +123,17 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       },
       { token: METRICS_BUCKETS, provider: { useValue: config.get('telemetry.metrics.buckets') } },
       { token: LIVENESS_PROBE_FACTORY, provider: { useFactory: livenessProbeFactory } },
-      { token: PROJECT_NAME_SYMBOL, provider: { useValue: config.get<string>('app.projectName') } },
-      { token: SERVICES.HTTP_CLIENT, provider: { useValue: axiosClient } },
+      {
+        token: SERVICES.HTTP_CLIENT,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+
+            const mapClientTimeout = config.get<number>('app.map.client.timeoutMs');
+            return axios.create({ timeout: mapClientTimeout });
+          }),
+        },
+      },
       { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
       { token: MAP_FORMAT, provider: { useValue: config.get<string>('app.map.format') } },
       { token: TILES_STORAGE_LAYOUT, provider: { useValue: config.get<TileStoragLayout>('app.tilesStorage.layout') } },
@@ -138,7 +158,24 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       {
         token: ON_SIGNAL,
         provider: {
-          useValue: cleanupRegistry.trigger.bind(cleanupRegistry),
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+            return cleanupRegistry.trigger.bind(cleanupRegistry);
+          }),
+        },
+      },
+      {
+        token: SERVICES.DETILER,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            if (config.get<boolean>('detiler.enabled')) {
+              const clientConfig = config.get<DetilerClientConfig>('detiler.client');
+              const logger = container.resolve<Logger>(SERVICES.LOGGER);
+              const detiler = new DetilerClient({ ...clientConfig, logger: logger.child({ subComponent: 'detiler' }) });
+              return detiler;
+            }
+          }),
         },
       },
     ];

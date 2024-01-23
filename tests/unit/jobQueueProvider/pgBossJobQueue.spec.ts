@@ -2,6 +2,7 @@ import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
+import { serializeError } from 'serialize-error';
 import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pgBossJobQueue';
 
 describe('PgBossJobQueueProvider', () => {
@@ -118,7 +119,7 @@ describe('PgBossJobQueueProvider', () => {
       await expect(queuePromise).resolves.not.toThrow();
 
       expect(pgbossMock.complete).not.toHaveBeenCalled();
-      expect(pgbossMock.fail).toHaveBeenCalledWith(id, fetchError);
+      expect(pgbossMock.fail).toHaveBeenCalledWith(id, serializeError(fetchError));
     });
   });
 });

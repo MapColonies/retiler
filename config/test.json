@@ -2,6 +2,10 @@
   "app": {
     "parallelism": 2,
     "queueName": "TEST_QUEUE",
+    "project": {
+      "name": "test",
+      "stateUrl": "http://replication/state.txt"
+    },
     "jobQueue": {
       "waitTimeout": 50,
       "pgBoss": {
@@ -48,6 +52,12 @@
         "format": "prefix/{z}/{x}/{y}.png",
         "shouldFlipY": true
       }
+    }
+  },
+  "detiler": {
+    "enabled": true,
+    "client": {
+      "url": "http://detiler.com"
     }
   }
 }

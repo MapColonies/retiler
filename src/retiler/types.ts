@@ -2,6 +2,8 @@ import { Tile } from '@map-colonies/tile-calc';
 
 export interface TileMetadata {
   parent: string;
+  state?: number;
+  force?: boolean;
 }
 
 export type TileWithMetadata = Required<Tile> & Partial<TileMetadata>;

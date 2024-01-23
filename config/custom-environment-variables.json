@@ -28,7 +28,14 @@
     "port": "SERVER_PORT"
   },
   "app": {
-    "projectName": "APP_PROJECT_NAME",
+    "project": {
+      "name": "APP_PROJECT_NAME",
+      "stateUrl": "APP_PROJECT_STATE_URL"
+    },
+    "forceProcess": {
+      "__name": "APP_FORCE_PROCESS",
+      "__format": "boolean"
+    },
     "queueName": "QUEUE_NAME",
     "parallelism": {
       "__name": "APP_JOB_PARALLELISM",
@@ -90,6 +97,41 @@
         "shouldFlipY": {
           "__name": "TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y",
           "__format": "boolean"
+        }
+      }
+    }
+  },
+  "detiler": {
+    "enabled": {
+      "__name": "DETILER_ENABLED",
+      "__format": "boolean"
+    },
+    "client": {
+      "url": "DETILER_CLIENT_URL",
+      "timeout": {
+        "__name": "DETILER_CLIENT_TIMEOUT",
+        "__format": "number"
+      },
+      "enableRetryStrategy": {
+        "__name": "DETILER_CLIENT_ENABLE_RETRY_STRATEGY",
+        "__format": "boolean"
+      },
+      "retryStrategy": {
+        "retries": {
+          "__name": "DETILER_CLIENT_RETRY_STRATEGY_RETRIES",
+          "__format": "number"
+        },
+        "shouldResetTimeout": {
+          "__name": "DETILER_CLIENT_RETRY_STRATEGY_SHOULD_RESET_TIMEOUT",
+          "__format": "boolean"
+        },
+        "isExponential": {
+          "__name": "DETILER_CLIENT_RETRY_STRATEGY_IS_EXPONENTIAL",
+          "__format": "boolean"
+        },
+        "delay": {
+          "__name": "DETILER_CLIENT_RETRY_STRATEGY_DELAY",
+          "__format": "number"
         }
       }
     }

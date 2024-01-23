@@ -1,5 +1,5 @@
 import * as fsPromises from 'fs/promises';
-import { setInterval as setIntervalPromise, setTimeout as setTimeoutPromise } from 'node:timers/promises';
+import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
@@ -26,6 +26,7 @@ import { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBos
 import { TilesStorageProvider } from '../../src/retiler/interfaces';
 import { getFlippedY } from '../../src/retiler/util';
 import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
+import { LONG_RUNNING_TEST, waitForJobToBeResolved } from './helpers';
 
 const s3SendMock = jest.fn();
 
@@ -48,29 +49,40 @@ jest.mock('@aws-sdk/client-s3', () => ({
   })),
 }));
 
-async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promise<PgBoss.JobWithMetadata | null> {
-  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
-  for await (const _unused of setIntervalPromise(10)) {
-    const job = await boss.getJobById(jobId);
-    if (job?.completedon) {
-      return job;
-    }
-  }
-  return null;
-}
-
 describe('retiler', function () {
-  let interceptor: nock.Interceptor;
+  let mapUrl: string;
+  let stateUrl: string;
+  let detilerUrl: string;
+  let getMapInterceptor: nock.Interceptor;
+  let stateInterceptor: nock.Interceptor;
+  let detilerScope: nock.Scope;
+  let detilerGetInterceptor: nock.Interceptor;
+  let detilerPutInterceptor: nock.Interceptor;
+  let stateBuffer: Buffer;
+  let mapBuffer2048x2048: Buffer;
+  let mapBuffer512x512: Buffer;
   let determineKey: (tile: Required<Tile>) => string;
 
-  beforeAll(function () {
-    const mapUrl = config.get<string>('app.map.url');
+  beforeAll(async () => {
+    mapUrl = config.get<string>('app.map.url');
+    detilerUrl = config.get<string>('detiler.client.url');
+    stateUrl = config.get<string>('app.project.stateUrl');
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    interceptor = nock(mapUrl).defaultReplyHeaders({ 'content-type': 'image/png' }).get(/.*/);
+    getMapInterceptor = nock(mapUrl).defaultReplyHeaders({ 'content-type': 'image/png' }).get(/.*/);
+    stateInterceptor = nock(stateUrl).get(/.*/);
+    detilerScope = nock(detilerUrl);
+    detilerGetInterceptor = detilerScope.get(/.*/);
+    detilerPutInterceptor = detilerScope.put(/.*/);
+    stateBuffer = await fsPromises.readFile('tests/state.txt');
+    mapBuffer512x512 = await fsPromises.readFile('tests/512x512.png');
+    mapBuffer2048x2048 = await fsPromises.readFile('tests/2048x2048.png');
   });
 
   afterEach(function () {
-    nock.removeInterceptor(interceptor);
+    nock.removeInterceptor(getMapInterceptor);
+    nock.removeInterceptor(stateInterceptor);
+    nock.removeInterceptor(detilerGetInterceptor);
+    nock.removeInterceptor(detilerPutInterceptor);
     jest.clearAllMocks();
   });
 
@@ -126,280 +138,603 @@ describe('retiler', function () {
     });
 
     describe('Happy Path', function () {
-      it('should complete a single job', async function () {
-        const mapBuffer = await fsPromises.readFile('tests/512x512.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+      it(
+        'should complete a single job',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
-        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
-        await provider.stopQueue();
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
 
-        await expect(consumePromise).resolves.not.toThrow();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        expect(job).toHaveProperty('state', 'completed');
+          expect(job).toHaveProperty('state', 'completed');
 
-        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
 
-        for (const storeTileSpy of storeTileSpies) {
-          for (let i = 0; i < 4; i++) {
-            const storeCall = storeTileSpy.mock.calls[i][0];
-            const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
-            const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
-            expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
           }
-        }
 
-        scope.done();
-      });
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-      it('should complete multiple jobs', async function () {
-        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
+      it(
+        'should complete a single job that has state',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent', state: 666 } });
 
-        const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
-        const [job1, job2, job3] = await Promise.all([
-          waitForJobToBeResolved(pgBoss, jobId1 as string),
-          waitForJobToBeResolved(pgBoss, jobId2 as string),
-          waitForJobToBeResolved(pgBoss, jobId3 as string),
-        ]);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
 
-        await provider.stopQueue();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        await expect(consumePromise).resolves.not.toThrow();
+          expect(job).toHaveProperty('state', 'completed');
+          expect(job).toHaveProperty('data.state', 666);
 
-        expect(job1).toHaveProperty('state', 'completed');
-        expect(job2).toHaveProperty('state', 'completed');
-        expect(job3).toHaveProperty('state', 'completed');
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
 
-        scope.done();
-      });
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
+          }
 
-      it('should complete running jobs', async function () {
-        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request4 = { name: queueName, data: { z: 3, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request5 = { name: queueName, data: { z: 4, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+      it(
+        'should complete a single job where tile is skipped',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 1705353636 });
+          const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
 
-        await pgBoss.insert([request1, request2, request3, request4, request5]);
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        await setTimeoutPromise(5);
-        await provider.stopQueue();
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
-        await expect(consumePromise).resolves.not.toThrow();
-        scope.done();
-      });
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
 
-      it('should complete some jobs even when one fails', async function () {
-        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer).persist();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        const pgBoss = container.resolve(PgBoss);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const request1 = { name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } };
-        const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
-        const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+          expect(job).toHaveProperty('state', 'completed');
 
-        const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(0));
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          detilerScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-        const [job1, job2, job3] = await Promise.all([
-          waitForJobToBeResolved(pgBoss, jobId1 as string),
-          waitForJobToBeResolved(pgBoss, jobId2 as string),
-          waitForJobToBeResolved(pgBoss, jobId3 as string),
-        ]);
+      it(
+        'should complete a single job where tile is not skipped',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-        await provider.stopQueue();
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        await expect(consumePromise).resolves.not.toThrow();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        expect(job1).toHaveProperty('state', 'failed');
-        expect(job1).toHaveProperty('output.message', 'x index out of range of tile grid');
-        expect(job2).toHaveProperty('state', 'completed');
-        expect(job3).toHaveProperty('state', 'completed');
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
-        scope.done();
-      }, 10000);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
+          }
+
+          getMapScope.done();
+          detilerScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete a single job where tile is forced',
+        async function () {
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent', force: true } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+          expect(job).toHaveProperty('data.force', true);
+
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
+          }
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete multiple jobs',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+          const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+          const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+          const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const [job1, job2, job3] = await Promise.all([
+            waitForJobToBeResolved(pgBoss, jobId1 as string),
+            waitForJobToBeResolved(pgBoss, jobId2 as string),
+            waitForJobToBeResolved(pgBoss, jobId3 as string),
+          ]);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job1).toHaveProperty('state', 'completed');
+          expect(job2).toHaveProperty('state', 'completed');
+          expect(job3).toHaveProperty('state', 'completed');
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete multiple jobs where some are forced',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
+          stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent', force: true } };
+          const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent', force: false } };
+          const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+          const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const [job1, job2, job3] = await Promise.all([
+            waitForJobToBeResolved(pgBoss, jobId1 as string),
+            waitForJobToBeResolved(pgBoss, jobId2 as string),
+            waitForJobToBeResolved(pgBoss, jobId3 as string),
+          ]);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job1).toHaveProperty('state', 'completed');
+          expect(job1).toHaveProperty('data.force', true);
+          expect(job2).toHaveProperty('state', 'completed');
+          expect(job2).toHaveProperty('data.force', false);
+          expect(job3).toHaveProperty('state', 'completed');
+          expect(job3).not.toHaveProperty('data.force');
+
+          getMapScope.done();
+          detilerScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete some jobs even when one fails',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+
+          const pgBoss = container.resolve(PgBoss);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const request1 = { name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } };
+          const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+          const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+          const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const [job1, job2, job3] = await Promise.all([
+            waitForJobToBeResolved(pgBoss, jobId1 as string),
+            waitForJobToBeResolved(pgBoss, jobId2 as string),
+            waitForJobToBeResolved(pgBoss, jobId3 as string),
+          ]);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job1).toHaveProperty('state', 'failed');
+          expect(job1).toHaveProperty('output.message', 'x index out of range of tile grid');
+          expect(job2).toHaveProperty('state', 'completed');
+          expect(job3).toHaveProperty('state', 'completed');
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
     });
 
     describe('Bad Path', function () {
-      it('should fail the job if the tile is out of bounds', async function () {
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
+      it(
+        'should fail the job if the tile is out of bounds',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-        await provider.stopQueue();
+          await provider.stopQueue();
 
-        await expect(consumePromise).resolves.not.toThrow();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', 'x index out of range of tile grid');
-      });
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'x index out of range of tile grid');
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-      it('should fail the job if map fetching service returns an error', async function () {
-        const mapUrl = container.resolve<string>(MAP_URL);
-        const scope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
+      it(
+        'should fail the job if map fetching service returns an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const mapUrl = container.resolve<string>(MAP_URL);
+          const getMapScope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-        await provider.stopQueue();
+          await provider.stopQueue();
 
-        await expect(consumePromise).resolves.not.toThrow();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', 'fetching map error');
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'fetching map error');
 
-        scope.done();
-      });
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-      it('should fail the job if map fetching service is unavailable', async function () {
-        const scope = interceptor.reply(httpStatusCodes.SERVICE_UNAVAILABLE);
+      it(
+        'should fail if detiler get throws an error',
+        async function () {
+          const detilerGetScope = nock(detilerUrl).get(/.*/).replyWithError({ message: 'detiler get error' });
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-        await provider.stopQueue();
+          await provider.stopQueue();
 
-        await expect(consumePromise).resolves.not.toThrow();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', 'Request failed with status code 503');
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'detiler get error');
 
-        scope.done();
-      });
+          detilerGetScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-      it('should fail the job if tile storage provider storeTile had thrown an error', async function () {
-        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+      it(
+        'should fail if getting state throws an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          const stateScope = nock(stateUrl).get(/.*/).replyWithError({ message: 'state get error' });
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        const error = new Error('storing error');
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
-        jest.spyOn(storageProviders[0], 'storeTile').mockRejectedValue(error);
+          await provider.stopQueue();
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await expect(consumePromise).resolves.not.toThrow();
 
-        await provider.stopQueue();
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'state get error');
 
-        await expect(consumePromise).resolves.not.toThrow();
+          detilerScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-        expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', error.message);
+      it(
+        'should fail if detiler set throws an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const detilerSetScope = nock(detilerUrl).put(/.*/).replyWithError({ message: 'detiler set error' });
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-        scope.done();
-      });
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-      it('should fail the job if s3 tile storage provider storeTile had thrown an error', async function () {
-        const errorMessage = 'send error';
-        const error = new Error(errorMessage);
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        s3SendMock.mockRejectedValueOnce(error);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+          await provider.stopQueue();
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+          await expect(consumePromise).resolves.not.toThrow();
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'detiler set error');
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          detilerScope.done();
+          getMapScope.done();
+          detilerSetScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-        await provider.stopQueue();
+      it(
+        'should fail the job if map fetching service is unavailable',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.SERVICE_UNAVAILABLE);
 
-        await expect(consumePromise).resolves.not.toThrow();
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        expect(job).toHaveProperty('state', 'failed');
-        const jobOutput = job?.output as object as { [index: string]: string };
-        expect(jobOutput['message']).toContain(error.message);
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        scope.done();
-      });
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-      it('should fail the job if fs tile storage provider storeTile had thrown an error', async function () {
-        const errorMessage = 'write error';
-        const error = new Error(errorMessage);
+          await provider.stopQueue();
 
-        (fsPromises.writeFile as jest.Mock).mockRejectedValueOnce(error);
+          await expect(consumePromise).resolves.not.toThrow();
 
-        const mapBuffer = await fsPromises.readFile('tests/2048x2048.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'Request failed with status code 503');
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
 
-        const consumePromise = consumeAndProcessFactory(container)();
+      it(
+        'should fail the job if tile storage provider storeTile had thrown an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-        await provider.stopQueue();
+          const error = new Error('storing error');
 
-        await expect(consumePromise).resolves.not.toThrow();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        expect(job).toHaveProperty('state', 'failed');
-        const jobOutput = job?.output as object as { [index: string]: string };
-        expect(jobOutput['message']).toContain(error.message);
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          jest.spyOn(storageProviders[0], 'storeTile').mockRejectedValue(error);
 
-        scope.done();
-      });
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', error.message);
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should fail the job if s3 tile storage provider storeTile had thrown an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          const errorMessage = 'send error';
+          const error = new Error(errorMessage);
+          s3SendMock.mockRejectedValueOnce(error);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          const jobOutput = job?.output as object as { [index: string]: string };
+          expect(jobOutput['message']).toContain(error.message);
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should fail the job if fs tile storage provider storeTile had thrown an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
+          const errorMessage = 'write error';
+          const error = new Error(errorMessage);
+          (fsPromises.writeFile as jest.Mock).mockRejectedValueOnce(error);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          const jobOutput = job?.output as object as { [index: string]: string };
+          expect(jobOutput['message']).toContain(error.message);
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
     });
 
     describe('Sad Path', function () {
@@ -445,6 +780,16 @@ describe('retiler', function () {
         ],
         useChild: true,
       });
+
+      const storageLayout = container.resolve<TileStoragLayout>(TILES_STORAGE_LAYOUT);
+
+      determineKey = (tile: Required<Tile>): string => {
+        if (storageLayout.shouldFlipY) {
+          tile.y = getFlippedY(tile);
+        }
+        const key = Format(storageLayout.format, tile);
+        return key;
+      };
     });
 
     afterEach(async () => {
@@ -458,91 +803,317 @@ describe('retiler', function () {
       container.reset();
     });
 
-    describe('happy path', function () {
-      it('should complete a single job', async function () {
-        const mapBuffer = await fsPromises.readFile('tests/512x512.png');
-        const scope = interceptor.reply(httpStatusCodes.OK, mapBuffer);
+    describe('Happy path', function () {
+      it(
+        'should complete a single job',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
-        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
-        await provider.stopQueue();
+          await provider.stopQueue();
 
-        await expect(consumePromise).resolves.not.toThrow();
+          await expect(consumePromise).resolves.not.toThrow();
 
-        expect(job).toHaveProperty('state', 'completed');
+          expect(job).toHaveProperty('state', 'completed');
 
-        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
 
-        for (const storeTileSpy of storeTileSpies) {
-          for (let i = 0; i < 4; i++) {
-            const storeCall = storeTileSpy.mock.calls[i][0];
-            const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
-            const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
-            expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
           }
-        }
 
-        scope.done();
-      });
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
     });
 
-    describe('bad path', function () {
-      it('should fail the job if map fetching service returns an error', async function () {
-        const mapUrl = container.resolve<string>(MAP_URL);
-        const scope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
+    describe('Bad path', function () {
+      it(
+        'should fail the job if map fetching service returns an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const getMapScope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'fetching map error');
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should fail the job if map fetching service returns an ok with xml content type',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const getMapScope = getMapInterceptor.reply(200, '<xml></xml>', { 'content-type': 'text/xml' });
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'The response returned from the service was in xml format');
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+    });
+  });
+
+  describe('disabled detiler', function () {
+    let container: DependencyContainer;
+
+    beforeEach(async () => {
+      container = await registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'detiler.enabled':
+                      return false;
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
+        ],
+        useChild: true,
+      });
+
+      const storageLayout = container.resolve<TileStoragLayout>(TILES_STORAGE_LAYOUT);
+
+      determineKey = (tile: Required<Tile>): string => {
+        if (storageLayout.shouldFlipY) {
+          tile.y = getFlippedY(tile);
+        }
+        const key = Format(storageLayout.format, tile);
+        return key;
+      };
+    });
+
+    afterEach(async () => {
+      const pgBoss = container.resolve(PgBoss);
+      await pgBoss.clearStorage();
+    });
+
+    afterAll(async () => {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
+
+    describe('Happy Path', function () {
+      it(
+        'should complete a single job',
+        async function () {
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
+          }
+
+          getMapScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it('should complete running jobs', async function () {
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048).persist();
 
         const pgBoss = container.resolve(PgBoss);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+        const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request2 = { name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request3 = { name: queueName, data: { z: 2, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request4 = { name: queueName, data: { z: 3, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+        const request5 = { name: queueName, data: { z: 4, x: 0, y: 0, metatile: 8, parent: 'parent' } };
+
+        await pgBoss.insert([request1, request2, request3, request4, request5]);
 
         const consumePromise = consumeAndProcessFactory(container)();
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
-
+        await setTimeoutPromise(5);
         await provider.stopQueue();
 
         await expect(consumePromise).resolves.not.toThrow();
 
-        expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', 'fetching map error');
+        getMapScope.done();
+      });
+    });
+  });
 
-        scope.done();
+  describe('forced processing', function () {
+    let container: DependencyContainer;
+
+    beforeEach(async () => {
+      container = await registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.forceProcess':
+                      return true;
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
+        ],
+        useChild: true,
       });
 
-      it('should fail the job if map fetching service returns an ok with xml content type', async function () {
-        const mapUrl = container.resolve<string>(MAP_URL);
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        const scope = nock(mapUrl).get(/.*/).reply(200, '<xml></xml>', { 'content-type': 'text/xml' });
+      const storageLayout = container.resolve<TileStoragLayout>(TILES_STORAGE_LAYOUT);
 
-        const pgBoss = container.resolve(PgBoss);
-        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-        const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+      determineKey = (tile: Required<Tile>): string => {
+        if (storageLayout.shouldFlipY) {
+          tile.y = getFlippedY(tile);
+        }
+        const key = Format(storageLayout.format, tile);
+        return key;
+      };
+    });
 
-        const consumePromise = consumeAndProcessFactory(container)();
+    afterEach(async () => {
+      const pgBoss = container.resolve(PgBoss);
+      await pgBoss.clearStorage();
+    });
 
-        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+    afterAll(async () => {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
 
-        await provider.stopQueue();
+    describe('Happy Path', function () {
+      it(
+        'should complete a single job',
+        async function () {
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-        await expect(consumePromise).resolves.not.toThrow();
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-        expect(job).toHaveProperty('state', 'failed');
-        expect(job).toHaveProperty('output.message', 'The response returned from the service was in xml format');
+          const consumePromise = consumeAndProcessFactory(container)();
 
-        scope.done();
-      });
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
+          }
+
+          getMapScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
     });
   });
 });

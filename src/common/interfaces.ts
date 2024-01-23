@@ -6,3 +6,8 @@ export interface IConfig {
 export interface IServerConfig {
   port: string;
 }
+
+export interface IProjectConfig {
+  name: string;
+  stateUrl: string;
+}

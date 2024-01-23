@@ -4,6 +4,7 @@ import client from 'prom-client';
 import { Logger } from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
+import { serializeError } from 'serialize-error';
 import { METRICS_REGISTRY, QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
 import { JobQueueProvider } from '../interfaces';
 import { Job } from './interfaces';
@@ -117,7 +118,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     } catch (err) {
       const error = err as Error;
       this.logger.error({ err: error, jobId: job.id });
-      await this.pgBoss.fail(job.id, error);
+      await this.pgBoss.fail(job.id, serializeError(error));
     } finally {
       this.runningJobs--;
       this.logger.debug({ msg: 'finished job, emitting job completed event', runningJobs: this.runningJobs });

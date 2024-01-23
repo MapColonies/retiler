@@ -33,7 +33,23 @@ data:
   {{- end }}
   {{- with .Values.env }}
   NO_SUPERVISOR: {{ .jobQueue.pgBoss.noSupervisor | quote }}
-  APP_PROJECT_NAME: {{ .projectName }}
+  APP_PROJECT_NAME: {{ .project.name }}
+  APP_PROJECT_STATE_URL: {{ .project.stateUrl }}
+  APP_FORCE_PROCESS: {{ .forceProcess }}
+  {{- with .Values.env.detiler }}
+  DETILER_ENABLED: {{ .enabled | quote }}
+  {{- if .enabled }}
+  DETILER_CLIENT_URL: {{ .client.url | quote }}
+  DETILER_CLIENT_TIMEOUT: {{ .client.timeout | quote }}
+  DETILER_CLIENT_ENABLE_RETRY_STRATEGY: {{ .client.retryStrategy.enabled | quote }}
+  {{- if .client.retryStrategy.enabled }}
+  DETILER_CLIENT_RETRY_STRATEGY_RETRIES: {{ .client.retryStrategy.retries | quote }}
+  DETILER_CLIENT_RETRY_STRATEGY_SHOULD_RESET_TIMEOUT: {{ .client.retryStrategy.shouldResetTimeout | default false | quote }}
+  DETILER_CLIENT_RETRY_STRATEGY_IS_EXPONENTIAL: {{ .client.retryStrategy.isExponential | default false | quote }}
+  DETILER_CLIENT_RETRY_STRATEGY_DELAY: {{ .client.retryStrategy.delay | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
   QUEUE_NAME: {{ .queueName }}
   APP_JOB_PARALLELISM: {{ .parallelism | quote }}
   QUEUE_WAIT_TIMEOUT: {{ .jobQueue.waitTimeout | quote}}
