@@ -471,6 +471,93 @@ describe('retiler', function () {
         },
         LONG_RUNNING_TEST
       );
+
+      it(
+        'should complete even if detiler get throws an error',
+        async function () {
+          const detilerGetScope = nock(detilerUrl).get(/.*/).replyWithError({ message: 'detiler get error' });
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          detilerGetScope.done();
+          getMapScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should completed even if getting state throws an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          const stateScope = nock(stateUrl).get(/.*/).replyWithError({ message: 'state get error' });
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          detilerScope.done();
+          getMapScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete even if detiler set throws an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const detilerSetScope = nock(detilerUrl).put(/.*/).replyWithError({ message: 'detiler set error' });
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          detilerScope.done();
+          getMapScope.done();
+          detilerSetScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
     });
 
     describe('Bad Path', function () {
@@ -523,90 +610,6 @@ describe('retiler', function () {
 
           getMapScope.done();
           detilerScope.done();
-        },
-        LONG_RUNNING_TEST
-      );
-
-      it(
-        'should fail if detiler get throws an error',
-        async function () {
-          const detilerGetScope = nock(detilerUrl).get(/.*/).replyWithError({ message: 'detiler get error' });
-
-          const pgBoss = container.resolve(PgBoss);
-          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-          const queueName = container.resolve<string>(QUEUE_NAME);
-          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
-
-          const consumePromise = consumeAndProcessFactory(container)();
-
-          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
-
-          await provider.stopQueue();
-
-          await expect(consumePromise).resolves.not.toThrow();
-
-          expect(job).toHaveProperty('state', 'failed');
-          expect(job).toHaveProperty('output.message', 'detiler get error');
-
-          detilerGetScope.done();
-        },
-        LONG_RUNNING_TEST
-      );
-
-      it(
-        'should fail if getting state throws an error',
-        async function () {
-          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
-          const stateScope = nock(stateUrl).get(/.*/).replyWithError({ message: 'state get error' });
-
-          const pgBoss = container.resolve(PgBoss);
-          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-          const queueName = container.resolve<string>(QUEUE_NAME);
-          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
-
-          const consumePromise = consumeAndProcessFactory(container)();
-
-          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
-
-          await provider.stopQueue();
-
-          await expect(consumePromise).resolves.not.toThrow();
-
-          expect(job).toHaveProperty('state', 'failed');
-          expect(job).toHaveProperty('output.message', 'state get error');
-
-          detilerScope.done();
-          stateScope.done();
-        },
-        LONG_RUNNING_TEST
-      );
-
-      it(
-        'should fail if detiler set throws an error',
-        async function () {
-          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
-          const detilerSetScope = nock(detilerUrl).put(/.*/).replyWithError({ message: 'detiler set error' });
-          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
-
-          const pgBoss = container.resolve(PgBoss);
-          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
-          const queueName = container.resolve<string>(QUEUE_NAME);
-          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
-
-          const consumePromise = consumeAndProcessFactory(container)();
-
-          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
-
-          await provider.stopQueue();
-
-          await expect(consumePromise).resolves.not.toThrow();
-
-          expect(job).toHaveProperty('state', 'failed');
-          expect(job).toHaveProperty('output.message', 'detiler set error');
-
-          detilerScope.done();
-          getMapScope.done();
-          detilerSetScope.done();
         },
         LONG_RUNNING_TEST
       );

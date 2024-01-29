@@ -266,6 +266,68 @@ describe('TileProcessor', () => {
       expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { state: undefined, timestamp: 1705487516 });
     });
 
+    it('should call all the processing functions in a row and resolve without errors if pre processing fails by getTileDetails', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      getTileDetails.mockRejectedValue(new Error());
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalled();
+    });
+
+    it('should call all the processing functions in a row and resolve without errors if pre processing fails by getting state', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      getTileDetails.mockReturnValue({ updatedAt: 1 });
+      mockedClient.get.mockRejectedValue(new Error());
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalled();
+    });
+
+    it('should call all the processing functions in a row and resolve without errors even if post processing fails by setTileDetails', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      getTileDetails.mockResolvedValue(null);
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+      setTileDetails.mockRejectedValue(new Error());
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalled();
+    });
+
     it('should throw error if getting map has failed', async () => {
       const tile = { x: 0, y: 0, z: 0, metatile: 8 };
       getTileDetails.mockResolvedValue(null);

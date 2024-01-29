@@ -4,6 +4,7 @@ import jsLogger from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
 import { serializeError } from 'serialize-error';
 import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pgBossJobQueue';
+import { LONG_RUNNING_TEST } from '../../integration/helpers';
 
 describe('PgBossJobQueueProvider', () => {
   let provider: PgBossJobQueueProvider;
@@ -66,23 +67,27 @@ describe('PgBossJobQueueProvider', () => {
   });
 
   describe('#consumeQueue', () => {
-    it('should consume the queue and call the provided funcs', async () => {
-      const job1 = { id: 'id1', data: { key: 'value' } };
-      const job2 = { id: 'id2', data: { key: 'value' } };
+    it(
+      'should consume the queue and call the provided funcs',
+      async () => {
+        const job1 = { id: 'id1', data: { key: 'value' } };
+        const job2 = { id: 'id2', data: { key: 'value' } };
 
-      const fnMock = jest.fn();
-      pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
-      await provider.startQueue();
-      const queuePromise = provider.consumeQueue(fnMock);
-      await setTimeoutPromise(50);
-      await provider.stopQueue();
+        const fnMock = jest.fn();
+        pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
+        await provider.startQueue();
+        const queuePromise = provider.consumeQueue(fnMock);
+        await setTimeoutPromise(50);
+        await provider.stopQueue();
 
-      await expect(queuePromise).resolves.not.toThrow();
+        await expect(queuePromise).resolves.not.toThrow();
 
-      expect(fnMock).toHaveBeenCalledTimes(2);
-      expect(pgbossMock.complete).toHaveBeenCalledTimes(2);
-      expect(pgbossMock.fail).not.toHaveBeenCalled();
-    }, 999999);
+        expect(fnMock).toHaveBeenCalledTimes(2);
+        expect(pgbossMock.complete).toHaveBeenCalledTimes(2);
+        expect(pgbossMock.fail).not.toHaveBeenCalled();
+      },
+      LONG_RUNNING_TEST
+    );
 
     it('should consume the queue in parallel when enabled', async () => {
       const job1 = { id: 'id1', data: { key: 'value' } };

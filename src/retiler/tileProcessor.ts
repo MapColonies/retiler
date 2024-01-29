@@ -111,31 +111,34 @@ export class TileProcessor {
 
     const detilerGetTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'detilerGet' });
 
-    // attempt to get latest tile details
-    const details = await this.detiler.getTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y });
+    try {
+      // attempt to get latest tile details
+      const details = await this.detiler.getTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y });
 
-    if (details !== null) {
-      // get the project last update time
-      const projectState = await this.axiosClient.get<Buffer>(this.project.stateUrl, { responseType: 'arraybuffer' });
-      const projectStateContent = projectState.data.toString();
-      const projectTimestamp = timestampToUnix(fetchTimestampValue(projectStateContent));
+      if (details !== null) {
+        // get the project last update time
+        const projectState = await this.axiosClient.get<Buffer>(this.project.stateUrl, { responseType: 'arraybuffer' });
+        const projectStateContent = projectState.data.toString();
+        const projectTimestamp = timestampToUnix(fetchTimestampValue(projectStateContent));
 
-      // skip if tile update time is later than project update time
-      if (details.updatedAt >= projectTimestamp) {
-        this.logger.info({ msg: 'skipping tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
-        if (detilerGetTimerEnd) {
-          detilerGetTimerEnd();
+        this.logger.info({ msg: 'determining if should skip tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
+
+        // skip if tile update time is later than project update time
+        if (details.updatedAt >= projectTimestamp) {
+          this.logger.info({ msg: 'skipping tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
+          return true;
         }
+      }
 
-        return true;
+      return false;
+    } catch (error) {
+      this.logger.error({ msg: 'an error occurred while pre processing, tile will be processed', error });
+      return false;
+    } finally {
+      if (detilerGetTimerEnd) {
+        detilerGetTimerEnd();
       }
     }
-
-    if (detilerGetTimerEnd) {
-      detilerGetTimerEnd();
-    }
-
-    return false;
   }
 
   private async postProcess(tile: TileWithMetadata, timestamp: number): Promise<void> {
@@ -145,10 +148,14 @@ export class TileProcessor {
 
     const detilerSetTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'detilerSet' });
 
-    await this.detiler.setTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y }, { state: tile.state, timestamp });
-
-    if (detilerSetTimerEnd) {
-      detilerSetTimerEnd();
+    try {
+      await this.detiler.setTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y }, { state: tile.state, timestamp });
+    } catch (error) {
+      this.logger.error({ msg: 'an error occurred while post processing, skipping details set', error });
+    } finally {
+      if (detilerSetTimerEnd) {
+        detilerSetTimerEnd();
+      }
     }
   }
 }
