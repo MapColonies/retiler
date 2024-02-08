@@ -20,8 +20,6 @@ export class FsTilesStorage implements TilesStorageProvider {
 
     const key = this.determineKey(baseTile);
 
-    this.logger.debug({ msg: 'storing tile in fs', tile: baseTile, parent, baseStoragePath: this.baseStoragePath, key });
-
     const storagePath = join(this.baseStoragePath, key);
 
     try {

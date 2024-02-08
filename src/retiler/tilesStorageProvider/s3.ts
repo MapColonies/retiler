@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */ // s3-client object commands arguments
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { Endpoint } from '@aws-sdk/types';
+import { EndpointV2 } from '@smithy/types';
 import { Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
@@ -14,7 +14,7 @@ import { TileStoragLayout } from './interfaces';
 
 @injectable()
 export class S3TilesStorage implements TilesStorageProvider {
-  private endpoint?: Endpoint;
+  private endpoint?: EndpointV2;
 
   public constructor(
     @inject(SERVICES.S3) private readonly s3Client: S3Client,
@@ -29,8 +29,6 @@ export class S3TilesStorage implements TilesStorageProvider {
     const { buffer, parent, ...baseTile } = tileWithBuffer;
 
     const key = this.determineKey(baseTile);
-
-    this.logger.debug({ msg: 'storing tile in bucket', tile: baseTile, parent, endpoint: this.endpoint, bucketName: this.bucket, key });
 
     const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer });
 
@@ -55,7 +53,7 @@ export class S3TilesStorage implements TilesStorageProvider {
     const parent = tiles[0].parent;
 
     if (this.endpoint === undefined) {
-      this.endpoint = await this.s3Client.config.endpoint();
+      this.endpoint = this.s3Client.config.endpointProvider({});
     }
 
     this.logger.debug({ msg: 'storing batch of tiles in bucket', parent, count: tiles.length, endpoint: this.endpoint, bucketName: this.bucket });

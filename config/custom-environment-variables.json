@@ -106,6 +106,12 @@
       "__name": "DETILER_ENABLED",
       "__format": "boolean"
     },
+    "proceedOnFailure": {
+      "enabled": {
+        "__name": "DETILER_PROCEED_ON_FAILURE",
+        "__format": "boolean"
+      }
+    },
     "client": {
       "url": "DETILER_CLIENT_URL",
       "timeout": {

@@ -169,9 +169,10 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
             const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            if (config.get<boolean>('detiler.enabled')) {
-              const clientConfig = config.get<DetilerClientConfig>('detiler.client');
+            const enableDetiler = config.get<boolean>('detiler.enabled');
+            if (enableDetiler) {
               const logger = container.resolve<Logger>(SERVICES.LOGGER);
+              const clientConfig = config.get<DetilerClientConfig>('detiler.client');
               const detiler = new DetilerClient({ ...clientConfig, logger: logger.child({ subComponent: 'detiler' }) });
               return detiler;
             }

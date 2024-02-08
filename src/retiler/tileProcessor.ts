@@ -22,6 +22,7 @@ import { TileWithMetadata } from './types';
 export class TileProcessor {
   private readonly project: IProjectConfig;
   private readonly forceProcess: boolean;
+  private readonly detilerProceedOnFailure: boolean;
 
   private readonly tilesCounter?: client.Counter<'status' | 'z'>;
   private readonly tilesDurationHistogram?: client.Histogram<'z' | 'kind'>;
@@ -39,6 +40,7 @@ export class TileProcessor {
   ) {
     this.project = this.config.get<IProjectConfig>('app.project');
     this.forceProcess = this.config.get<boolean>('app.forceProcess');
+    this.detilerProceedOnFailure = this.config.get<boolean>('detiler.proceedOnFailure');
 
     if (registry !== undefined) {
       this.tilesDurationHistogram = new client.Histogram({
@@ -152,6 +154,9 @@ export class TileProcessor {
       await this.detiler.setTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y }, { state: tile.state, timestamp });
     } catch (error) {
       this.logger.error({ msg: 'an error occurred while post processing, skipping details set', error });
+      if (!this.detilerProceedOnFailure) {
+        throw error;
+      }
     } finally {
       if (detilerSetTimerEnd) {
         detilerSetTimerEnd();

@@ -44,7 +44,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
     send: s3SendMock,
     destroy: jest.fn(),
     config: {
-      endpoint: jest.fn().mockResolvedValue('test-endpoint'),
+      endpointProvider: jest.fn().mockReturnValue('test-endpoint'),
     },
   })),
 }));
@@ -1026,7 +1026,7 @@ describe('retiler', function () {
     });
   });
 
-  describe('forced processing', function () {
+  describe('forced processing with no proceeding on failure', function () {
     let container: DependencyContainer;
 
     beforeEach(async () => {
@@ -1040,6 +1040,8 @@ describe('retiler', function () {
                   switch (key) {
                     case 'app.forceProcess':
                       return true;
+                    case 'detiler.proceedOnFailure':
+                      return false;
                     default:
                       return config.get(key);
                   }
@@ -1114,6 +1116,37 @@ describe('retiler', function () {
 
           getMapScope.done();
           detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+    });
+
+    describe('Sad Path', function () {
+      it(
+        'should fail the job if detiler set has failed',
+        async function () {
+          const detilerSetScope = nock(detilerUrl).put(/.*/).replyWithError({ message: 'detiler set error' });
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'detiler set error');
+
+          detilerScope.done();
+          getMapScope.done();
+          detilerSetScope.done();
         },
         LONG_RUNNING_TEST
       );

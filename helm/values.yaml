@@ -44,6 +44,7 @@ env:
     stateUrl: stateUrl
   detiler:
     enabled: false
+    proceedOnFailure: true
     client:
       url: detilerUrl
       timeout: 60000

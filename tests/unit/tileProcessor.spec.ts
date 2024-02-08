@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import { IDetilerClient } from '@map-colonies/detiler-client';
 import jsLogger from '@map-colonies/js-logger';
+import config from 'config';
 import { AxiosInstance } from 'axios';
 import client from 'prom-client';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from '../../src/retiler/interfaces';
@@ -36,6 +37,8 @@ describe('TileProcessor', () => {
               name: 'testKit',
               stateUrl: 'stateUrlTest',
             };
+          default:
+            return config.get<unknown>(key);
         }
       }),
       has: jest.fn(),
@@ -319,6 +322,55 @@ describe('TileProcessor', () => {
       setTileDetails.mockRejectedValue(new Error());
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalled();
+    });
+
+    it('should fail if setTileDetails fails and configured to not proceed on detiler failure', async () => {
+      const configMock = {
+        get: jest.fn().mockImplementation((key: string) => {
+          switch (key) {
+            case 'app.project':
+              return {
+                name: 'testKit',
+                stateUrl: 'stateUrlTest',
+              };
+            case 'detiler.proceedOnFailure':
+              return false;
+          }
+        }),
+        has: jest.fn(),
+      };
+
+      const tileProcessorWithNoProceeding = new TileProcessor(
+        jsLogger({ enabled: false }),
+        mapProv,
+        mapSplitterProv,
+        [tilesStorageProv, anotherTilesStorageProv],
+        mockedClient,
+        configMock,
+        mockedDetiler,
+        new client.Registry(),
+        []
+      );
+
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      getTileDetails.mockResolvedValue(null);
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+      const error = new Error('detiler set error');
+      setTileDetails.mockRejectedValue(error);
+
+      await expect(tileProcessorWithNoProceeding.processTile(tile)).rejects.toThrow(error);
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
