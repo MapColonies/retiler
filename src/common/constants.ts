@@ -8,7 +8,6 @@ export const IGNORED_INCOMING_TRACE_ROUTES = [/^.*\/docs.*$/, /^.*\/metrics.*/];
 
 export const ON_SIGNAL = Symbol('onSignal');
 
-export const PROJECT_NAME_SYMBOL = Symbol('projectName');
 export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
 export const MAP_PROVIDER = Symbol('MapProvider');
 export const MAP_SPLITTER_PROVIDER = Symbol('MapSplitterProvider');
@@ -40,9 +39,14 @@ export const SERVICES: Record<string, symbol> = {
   S3: Symbol('S3'),
   HTTP_CLIENT: Symbol('HttpClient'),
   CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
+  DETILER: Symbol('Detiler'),
 };
 
 export const ExitCodes: Record<string, number> = {
   SUCCESS: 0,
   GENERAL_ERROR: 1,
 };
+
+export const MILLISECONDS_IN_SECOND = 1000;
+
+export const TIMESTAMP_REGEX = /timestamp=\d{4}-\d{2}-\d{2}T\d{2}\\?:\d{2}\\?:\d{2}Z/;

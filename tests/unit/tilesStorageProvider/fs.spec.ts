@@ -5,6 +5,11 @@ import { FsTilesStorage } from '../../../src/retiler/tilesStorageProvider/fs';
 
 jest.mock('fs');
 jest.mock('fs/promises');
+jest.mock('@map-colonies/read-pkg', () => ({
+  readPackageJsonSync: jest.fn().mockImplementation(() => {
+    return { name: 'retiler_test' };
+  }),
+}));
 
 describe('FsTilesStorage', () => {
   let storage: FsTilesStorage;

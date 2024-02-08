@@ -39,7 +39,18 @@ dbConfig:
 
 env:
   logLevel: info
-  projectName: default
+  project:
+    name: default
+    stateUrl: stateUrl
+  detiler:
+    enabled: false
+    proceedOnFailure: true
+    client:
+      url: detilerUrl
+      timeout: 60000
+      retryStrategy:
+        enabled: fasle
+  forceProcess: false
   queueName: QUEUE_NAME
   parallelism: 5
   jobQueue:

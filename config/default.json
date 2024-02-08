@@ -13,7 +13,11 @@
     "port": "8080"
   },
   "app": {
-    "projectName": "default",
+    "project": {
+      "name": "default",
+      "stateUrl": "defaultStateUrl"
+    },
+    "forceProcess": false,
     "queueName": "QUEUE_NAME",
     "parallelism": 5,
     "jobQueue": {
@@ -64,5 +68,8 @@
       "format": "prefix/{z}/{x}/{y}.png",
       "shouldFlipY": true
     }
+  },
+  "detiler": {
+    "enabled": false
   }
 }
