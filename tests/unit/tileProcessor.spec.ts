@@ -64,7 +64,14 @@ describe('TileProcessor', () => {
       };
 
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
-      mockedDetiler = { getTileDetails, setTileDetails };
+      mockedDetiler = {
+        getTileDetails,
+        setTileDetails,
+        getKits: jest.fn(),
+        queryTilesDetails: jest.fn(),
+        queryTilesDetailsAsyncGenerator: jest.fn(),
+        getTilesDetails: jest.fn(),
+      };
 
       processor = new TileProcessor(
         jsLogger({ enabled: false }),
