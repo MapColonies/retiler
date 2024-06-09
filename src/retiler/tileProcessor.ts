@@ -125,8 +125,12 @@ export class TileProcessor {
 
         this.logger.info({ msg: 'determining if should skip tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
 
-        // skip if tile update time is later than project update time
+        // skip processing if tile update time is later than project update time
         if (details.updatedAt >= projectTimestamp) {
+          await this.detiler.setTileDetails(
+            { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
+            { hasSkipped: true, timestamp: details.updatedAt }
+          );
           this.logger.info({ msg: 'skipping tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
           return true;
         }

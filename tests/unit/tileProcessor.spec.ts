@@ -174,7 +174,8 @@ describe('TileProcessor', () => {
       expect(mapProv.getMap).not.toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
-      expect(mockedDetiler.setTileDetails).not.toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledTimes(1);
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { hasSkipped: true, timestamp: updatedAtUnix });
     });
 
     it('should call all the processing functions in a row with the exception of detiler if tile is attributed with force', async () => {
