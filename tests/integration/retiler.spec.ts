@@ -225,6 +225,7 @@ describe('retiler', function () {
         'should complete a single job where tile is skipped',
         async function () {
           detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 1705353636 });
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
 
           const pgBoss = container.resolve(PgBoss);
