@@ -9,6 +9,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
   S3Client: jest.fn().mockImplementation(() => ({
     send: jest.fn(),
     config: {
+      region: jest.fn().mockReturnValue('test-region'),
       endpointProvider: jest.fn().mockReturnValue('test-endpoint'),
     },
   })),

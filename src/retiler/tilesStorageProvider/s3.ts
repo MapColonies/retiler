@@ -53,7 +53,8 @@ export class S3TilesStorage implements TilesStorageProvider {
     const parent = tiles[0].parent;
 
     if (this.endpoint === undefined) {
-      this.endpoint = this.s3Client.config.endpointProvider({});
+      const region = await this.s3Client.config.region();
+      this.endpoint = this.s3Client.config.endpointProvider({ Region: region });
     }
 
     this.logger.debug({ msg: 'storing batch of tiles in bucket', parent, count: tiles.length, endpoint: this.endpoint, bucketName: this.bucket });

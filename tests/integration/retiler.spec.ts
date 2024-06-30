@@ -44,6 +44,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
     send: s3SendMock,
     destroy: jest.fn(),
     config: {
+      region: jest.fn().mockReturnValue('test-region'),
       endpointProvider: jest.fn().mockReturnValue('test-endpoint'),
     },
   })),
