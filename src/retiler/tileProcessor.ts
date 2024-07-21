@@ -129,7 +129,7 @@ export class TileProcessor {
         if (details.updatedAt >= projectTimestamp) {
           await this.detiler.setTileDetails(
             { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
-            { hasSkipped: true, timestamp: details.updatedAt }
+            { hasSkipped: true, state: tile.state, timestamp: details.updatedAt }
           );
           this.logger.info({ msg: 'skipping tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
           return true;
