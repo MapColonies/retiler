@@ -62,15 +62,15 @@ export class TileProcessor {
 
   public async processTile(tile: TileWithMetadata): Promise<void> {
     try {
+      // set the tile's updatedAt timestamp to be just before getMap call
+      const preRenderTimestamp = Math.floor(Date.now() / MILLISECONDS_IN_SECOND);
+
       // check if possibly the tile processing can be skipped according to detiler
-      const shouldSkip = await this.preProcess(tile);
+      const shouldSkip = await this.preProcess(tile, preRenderTimestamp);
       if (shouldSkip) {
         this.tilesCounter?.inc({ status: 'skipped', z: tile.z });
         return;
       }
-
-      // set the tile's updatedAt timestamp to be just before getMap call
-      const preRenderTimestamp = Math.floor(Date.now() / MILLISECONDS_IN_SECOND);
 
       const fetchTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'fetch', z: tile.z });
       const mapBuffer = await this.mapProvider.getMap(tile);
@@ -104,7 +104,7 @@ export class TileProcessor {
     }
   }
 
-  private async preProcess(tile: TileWithMetadata): Promise<boolean> {
+  private async preProcess(tile: TileWithMetadata, timestamp: number): Promise<boolean> {
     const isForced = this.forceProcess || tile.force === true;
 
     if (this.detiler === undefined || isForced) {
@@ -115,23 +115,23 @@ export class TileProcessor {
 
     try {
       // attempt to get latest tile details
-      const details = await this.detiler.getTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y });
+      const tileDetails = await this.detiler.getTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y });
 
-      if (details !== null) {
+      if (tileDetails !== null) {
         // get the project last update time
         const projectState = await this.axiosClient.get<Buffer>(this.project.stateUrl, { responseType: 'arraybuffer' });
         const projectStateContent = projectState.data.toString();
         const projectTimestamp = timestampToUnix(fetchTimestampValue(projectStateContent));
 
-        this.logger.info({ msg: 'determining if should skip tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
+        this.logger.info({ msg: 'determining if should skip tile processing', tile, tileDetails, sourceUpdatedAt: projectTimestamp });
 
         // skip processing if tile update time is later than project update time
-        if (details.updatedAt >= projectTimestamp) {
+        if (tileDetails.renderedAt >= projectTimestamp) {
           await this.detiler.setTileDetails(
             { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
-            { hasSkipped: true, state: tile.state, timestamp: details.updatedAt }
+            { hasSkipped: true, state: tile.state, timestamp }
           );
-          this.logger.info({ msg: 'skipping tile processing', tile, tileDetails: details, sourceUpdatedAt: projectTimestamp });
+          this.logger.info({ msg: 'skipping tile processing', tile, tileDetails, sourceUpdatedAt: projectTimestamp });
           return true;
         }
       }

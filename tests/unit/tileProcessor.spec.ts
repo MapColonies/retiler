@@ -162,8 +162,18 @@ describe('TileProcessor', () => {
     it('should skip processing due to detiler detail response having greater updated time', async () => {
       const tile = { x: 0, y: 0, z: 0, metatile: 8 };
 
+      jest.spyOn(Date, 'now').mockImplementation(() => 1705487516000);
       const updatedAtUnix = timestampToUnix(REMOTE_STATE_TIMESTAMP) + 1000000;
-      getTileDetails.mockResolvedValue({ kit: 'testKit', updatedAt: updatedAtUnix, state: 1, createdAt: 0, updateCount: 1, location: '31.1,32.3' });
+      getTileDetails.mockResolvedValue({
+        kit: 'testKit',
+        updatedAt: updatedAtUnix,
+        renderedAt: updatedAtUnix,
+        state: 1,
+        createdAt: 0,
+        updateCount: 1,
+        renderCount: 1,
+        location: '31.1,32.3',
+      });
       const remoteStateResponse = await readFile('tests/state.txt');
       mockedClient.get.mockResolvedValue({ data: remoteStateResponse });
 
@@ -175,7 +185,7 @@ describe('TileProcessor', () => {
       expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
       expect(mockedDetiler.setTileDetails).toHaveBeenCalledTimes(1);
-      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { hasSkipped: true, timestamp: updatedAtUnix });
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { hasSkipped: true, timestamp: 1705487516 });
     });
 
     it('should call all the processing functions in a row with the exception of detiler if tile is attributed with force', async () => {

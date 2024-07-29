@@ -225,7 +225,7 @@ describe('retiler', function () {
       it(
         'should complete a single job where tile is skipped',
         async function () {
-          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 1705353636 });
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { renderedAt: 1705353636, updateedAt: 9999999999 });
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
 
@@ -257,7 +257,7 @@ describe('retiler', function () {
       it(
         'should complete a single job where tile is not skipped',
         async function () {
-          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { renderedAt: 0 });
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
@@ -386,7 +386,7 @@ describe('retiler', function () {
         'should complete multiple jobs where some are forced',
         async function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
-          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { renderedAt: 0 });
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
@@ -505,7 +505,7 @@ describe('retiler', function () {
       it(
         'should completed even if getting state throws an error',
         async function () {
-          detilerGetInterceptor.reply(httpStatusCodes.OK, { updatedAt: 0 });
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { renderedAt: 0 });
           const stateScope = nock(stateUrl).get(/.*/).replyWithError({ message: 'state get error' });
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
