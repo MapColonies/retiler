@@ -33,7 +33,26 @@ data:
   {{- end }}
   {{- with .Values.env }}
   NO_SUPERVISOR: {{ .jobQueue.pgBoss.noSupervisor | quote }}
-  APP_PROJECT_NAME: {{ .projectName }}
+  APP_PROJECT_NAME: {{ .project.name }}
+  APP_PROJECT_STATE_URL: {{ .project.stateUrl }}
+  APP_FORCE_PROCESS: {{ .forceProcess }}
+  DETILER_ENABLED: {{ .detiler.enabled | quote }}
+  {{- if .detiler.enabled }}
+  {{- if .detiler.proceedOnFailure }}
+  DETILER_PROCEED_ON_FAILURE: "true"
+  {{- else }}
+  DETILER_PROCEED_ON_FAILURE: "false"
+  {{- end }}
+  DETILER_CLIENT_URL: {{ .detiler.client.url | quote }}
+  DETILER_CLIENT_TIMEOUT: {{ .detiler.client.timeout | quote }}
+  DETILER_CLIENT_ENABLE_RETRY_STRATEGY: {{ .detiler.client.retryStrategy.enabled | quote }}
+  {{- if .detiler.client.retryStrategy.enabled }}
+  DETILER_CLIENT_RETRY_STRATEGY_RETRIES: {{ .detiler.client.retryStrategy.retries | quote }}
+  DETILER_CLIENT_RETRY_STRATEGY_SHOULD_RESET_TIMEOUT: {{ .detiler.client.retryStrategy.shouldResetTimeout | default false | quote }}
+  DETILER_CLIENT_RETRY_STRATEGY_IS_EXPONENTIAL: {{ .detiler.client.retryStrategy.isExponential | default false | quote }}
+  DETILER_CLIENT_RETRY_STRATEGY_DELAY: {{ .detiler.client.retryStrategy.delay | quote }}
+  {{- end }}
+  {{- end }}
   QUEUE_NAME: {{ .queueName }}
   APP_JOB_PARALLELISM: {{ .parallelism | quote }}
   QUEUE_WAIT_TIMEOUT: {{ .jobQueue.waitTimeout | quote}}

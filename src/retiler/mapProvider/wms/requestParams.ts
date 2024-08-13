@@ -26,7 +26,7 @@ export const BASE_REQUEST_PARAMS = {
   layers: '',
   format: 'image/png',
   transparent: true,
-  service: 'wms',
+  service: 'WMS',
   request: 'GetMap',
   styles: '',
 };
