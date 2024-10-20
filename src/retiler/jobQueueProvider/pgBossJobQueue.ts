@@ -2,12 +2,11 @@ import EventEmitter from 'node:events';
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
 import { Logger } from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
+import PgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { serializeError } from 'serialize-error';
 import { METRICS_REGISTRY, QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
 import { JobQueueProvider } from '../interfaces';
-import { Job } from './interfaces';
 
 @injectable()
 export class PgBossJobQueueProvider implements JobQueueProvider {
@@ -109,7 +108,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     });
   }
 
-  private async handleJob<T, R = void>(job: Job<T>, fn: (value: T, jobId?: string) => Promise<R>): Promise<void> {
+  private async handleJob<T, R = void>(job: JobWithMetadata<T>, fn: (value: T, jobId?: string) => Promise<R>): Promise<void> {
     try {
       this.logger.debug({ msg: 'job fetched from queue', jobId: job.id });
       await fn(job.data, job.id);
@@ -117,7 +116,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       await this.pgBoss.complete(job.id);
     } catch (err) {
       const error = err as Error;
-      this.logger.error({ err: error, jobId: job.id });
+      this.logger.error({ err: error, jobId: job.id, job });
       await this.pgBoss.fail(job.id, serializeError(error));
     } finally {
       this.runningJobs--;
@@ -126,22 +125,22 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     }
   }
 
-  private async *getJobsIterator<T>(): AsyncGenerator<Job<T>> {
+  private async *getJobsIterator<T>(): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
     /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until the queue ends
     while (true) {
       if (this.isDraining || !this.isRunning) {
         break;
       }
 
-      const job = await this.pgBoss.fetch<T>(this.queueName);
+      const jobs = await this.pgBoss.fetch<T>(this.queueName, 1, { includeMetadata: true });
 
-      if (job === null) {
+      if (jobs === null || jobs.length === 0) {
         this.logger.info({ msg: 'queue is empty, waiting for data' });
         await setTimeoutPromise(this.queueWaitTimeout);
         continue;
       }
 
-      yield job;
+      yield jobs[0];
     }
   }
 }
