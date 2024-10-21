@@ -70,8 +70,8 @@ describe('PgBossJobQueueProvider', () => {
     it(
       'should consume the queue and call the provided funcs',
       async () => {
-        const job1 = { id: 'id1', data: { key: 'value' } };
-        const job2 = { id: 'id2', data: { key: 'value' } };
+        const job1 = [{ id: 'id1', data: { key: 'value' } }];
+        const job2 = [{ id: 'id2', data: { key: 'value' } }];
 
         const fnMock = jest.fn();
         pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValue(null);
@@ -90,9 +90,9 @@ describe('PgBossJobQueueProvider', () => {
     );
 
     it('should consume the queue in parallel when enabled', async () => {
-      const job1 = { id: 'id1', data: { key: 'value' } };
-      const job2 = { id: 'id2', data: { key: 'value' } };
-      const job3 = { id: 'id3', data: { key: 'value' } };
+      const job1 = [{ id: 'id1', data: { key: 'value' } }];
+      const job2 = [{ id: 'id2', data: { key: 'value' } }];
+      const job3 = [{ id: 'id3', data: { key: 'value' } }];
 
       const fnMock = jest.fn();
       pgbossMock.fetch.mockResolvedValueOnce(job1).mockResolvedValueOnce(job2).mockResolvedValueOnce(job3).mockResolvedValueOnce(null);
@@ -111,7 +111,7 @@ describe('PgBossJobQueueProvider', () => {
 
     it('should reject with an error if provided function for consuming has failed', async () => {
       const id = 'someId';
-      pgbossMock.fetch.mockResolvedValueOnce({ id });
+      pgbossMock.fetch.mockResolvedValueOnce([{ id }]);
 
       const fnMock = jest.fn();
       const fetchError = new Error('fetch error');
