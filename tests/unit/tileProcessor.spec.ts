@@ -28,6 +28,7 @@ describe('TileProcessor', () => {
     const storeTiles = jest.fn();
     const getTileDetails = jest.fn();
     const setTileDetails = jest.fn();
+    const queryCooldownsAsyncGenerator = jest.fn();
 
     const configMock = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -70,6 +71,7 @@ describe('TileProcessor', () => {
         getKits: jest.fn(),
         queryTilesDetails: jest.fn(),
         queryTilesDetailsAsyncGenerator: jest.fn(),
+        queryCooldownsAsyncGenerator,
         getTilesDetails: jest.fn(),
       };
 
@@ -121,10 +123,108 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).toHaveBeenCalledWith({
+        area: [-180, -90, 180, 90],
+        enabled: true,
+        kits: ['testKit'],
+        minZoom: tile.z,
+        maxZoom: tile.z,
+      });
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
-      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { state: 2, timestamp: 1705487516 });
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith(
+        { kit: 'testKit', x: 0, y: 0, z: 0 },
+        { status: 'rendered', state: 2, timestamp: 1705487516 }
+      );
+    });
+
+    it('should call all the processing functions in a row, get one cooldown which duration is too low and resolve without errors', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8, state: 2 };
+
+      jest.spyOn(Date, 'now').mockImplementation(() => 1705487516000);
+      getTileDetails.mockResolvedValue({
+        kit: 'testKit',
+        updatedAt: 10,
+        renderedAt: 1705353635,
+        state: 1,
+        createdAt: 10,
+        updateCount: 1,
+        location: '31.1,32.3',
+      });
+      const remoteStateResponse = await readFile('tests/state.txt');
+      mockedClient.get.mockResolvedValue({ data: remoteStateResponse });
+
+      queryCooldownsAsyncGenerator.mockImplementation(function* () {
+        yield [{ duration: 10 }];
+      });
+
+      const getMapResponse = Buffer.from('test');
+      getMap.mockResolvedValue(getMapResponse);
+      splitMap.mockResolvedValue([
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+      ]);
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).toHaveBeenCalledWith({
+        area: [-180, -90, 180, 90],
+        enabled: true,
+        kits: ['testKit'],
+        minZoom: tile.z,
+        maxZoom: tile.z,
+      });
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith(
+        { kit: 'testKit', x: 0, y: 0, z: 0 },
+        { status: 'rendered', state: 2, timestamp: 1705487516 }
+      );
+    });
+
+    it('should call all the processing functions in a row, get cooldown which causes the tile processing to be skipped', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8, state: 2 };
+
+      jest.spyOn(Date, 'now').mockImplementation(() => 1705487516000);
+      getTileDetails.mockResolvedValue({
+        kit: 'testKit',
+        updatedAt: 10,
+        renderedAt: 1705353635,
+        state: 1,
+        createdAt: 10,
+        updateCount: 1,
+        location: '31.1,32.3',
+      });
+      const remoteStateResponse = await readFile('tests/state.txt');
+      mockedClient.get.mockResolvedValue({ data: remoteStateResponse });
+
+      queryCooldownsAsyncGenerator.mockImplementation(function* () {
+        yield [{ duration: 999999 }];
+      });
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).toHaveBeenCalledWith({
+        area: [-180, -90, 180, 90],
+        enabled: true,
+        kits: ['testKit'],
+        minZoom: tile.z,
+        maxZoom: tile.z,
+      });
+      expect(mapProv.getMap).not.toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledTimes(1);
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith(
+        { kit: 'testKit', x: 0, y: 0, z: 0 },
+        { status: 'cooled', state: 2, timestamp: 1705487516 }
+      );
     });
 
     it('should call all the processing functions in a row and resolve without errors if detiler is not configured', async () => {
@@ -153,6 +253,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).not.toHaveBeenCalled();
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
@@ -181,11 +282,12 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).not.toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
       expect(mockedDetiler.setTileDetails).toHaveBeenCalledTimes(1);
-      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { hasSkipped: true, timestamp: 1705487516 });
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { status: 'skipped', timestamp: 1705487516 });
     });
 
     it('should call all the processing functions in a row with the exception of detiler if tile is attributed with force', async () => {
@@ -205,10 +307,14 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).not.toHaveBeenCalled();
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
-      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { state: undefined, timestamp: newUpdatedAt });
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith(
+        { kit: 'testKit', x: 0, y: 0, z: 0 },
+        { status: 'rendered', state: undefined, timestamp: newUpdatedAt }
+      );
     });
 
     it('should call all the processing functions in a row with the exception of detiler if application is force processing', async () => {
@@ -255,10 +361,14 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).not.toHaveBeenCalled();
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
-      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { state: undefined, timestamp: newUpdatedAt });
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith(
+        { kit: 'testKit', x: 0, y: 0, z: 0 },
+        { status: 'rendered', state: undefined, timestamp: newUpdatedAt }
+      );
     });
 
     it('should call all the processing functions in a row and resolve without errors for multi stores processor', async () => {
@@ -280,11 +390,21 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).toHaveBeenCalledWith({
+        area: [-180, -90, 180, 90],
+        enabled: true,
+        kits: ['testKit'],
+        minZoom: tile.z,
+        maxZoom: tile.z,
+      });
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
       expect(anotherTilesStorageProv.storeTiles).toHaveBeenCalled();
-      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 }, { state: undefined, timestamp: 1705487516 });
+      expect(mockedDetiler.setTileDetails).toHaveBeenCalledWith(
+        { kit: 'testKit', x: 0, y: 0, z: 0 },
+        { status: 'rendered', state: undefined, timestamp: 1705487516 }
+      );
     });
 
     it('should call all the processing functions in a row and resolve without errors if pre processing fails by getTileDetails', async () => {
@@ -301,6 +421,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
@@ -322,6 +443,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
@@ -343,6 +465,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
@@ -392,6 +515,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
@@ -408,6 +532,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
@@ -426,6 +551,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
@@ -448,6 +574,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
@@ -470,6 +597,7 @@ describe('TileProcessor', () => {
 
       expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
       expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();

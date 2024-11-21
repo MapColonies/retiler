@@ -58,6 +58,7 @@ describe('retiler', function () {
   let stateInterceptor: nock.Interceptor;
   let detilerScope: nock.Scope;
   let detilerGetInterceptor: nock.Interceptor;
+  let cooldownsGetInterceptor: nock.Interceptor;
   let detilerPutInterceptor: nock.Interceptor;
   let stateBuffer: Buffer;
   let mapBuffer2048x2048: Buffer;
@@ -72,7 +73,8 @@ describe('retiler', function () {
     getMapInterceptor = nock(mapUrl).defaultReplyHeaders({ 'content-type': 'image/png' }).get(/.*/);
     stateInterceptor = nock(stateUrl).get(/.*/);
     detilerScope = nock(detilerUrl);
-    detilerGetInterceptor = detilerScope.get(/.*/);
+    detilerGetInterceptor = detilerScope.get(/^\/detail/);
+    cooldownsGetInterceptor = detilerScope.get(/^\/cooldown/);
     detilerPutInterceptor = detilerScope.put(/.*/);
     stateBuffer = await fsPromises.readFile('tests/state.txt');
     mapBuffer512x512 = await fsPromises.readFile('tests/512x512.png');
@@ -83,6 +85,7 @@ describe('retiler', function () {
     nock.removeInterceptor(getMapInterceptor);
     nock.removeInterceptor(stateInterceptor);
     nock.removeInterceptor(detilerGetInterceptor);
+    nock.removeInterceptor(cooldownsGetInterceptor);
     nock.removeInterceptor(detilerPutInterceptor);
     jest.clearAllMocks();
   });
@@ -291,6 +294,83 @@ describe('retiler', function () {
           }
 
           getMapScope.done();
+          detilerScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete a single job where tile is not skipped even if a cooldown is found',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { renderedAt: 0 });
+          cooldownsGetInterceptor.reply(httpStatusCodes.OK, [{ duration: 1 }]);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
+          const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(4));
+
+          for (const storeTileSpy of storeTileSpies) {
+            for (let i = 0; i < 4; i++) {
+              const storeCall = storeTileSpy.mock.calls[i][0];
+              const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
+              const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
+              expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
+            }
+          }
+
+          getMapScope.done();
+          detilerScope.done();
+          stateScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete a single job where tile processing is skipped due to cooldown',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.OK, { renderedAt: 0 });
+          cooldownsGetInterceptor.reply(httpStatusCodes.OK, [{ duration: 9999999999 }]);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
+
+          const pgBoss = container.resolve(PgBoss);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+          const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+
+          storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(0));
+
           detilerScope.done();
           stateScope.done();
         },

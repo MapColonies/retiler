@@ -152,7 +152,7 @@ export class TileProcessor {
         if (tileDetails.renderedAt >= projectTimestamp) {
           await this.detiler.setTileDetails(
             { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
-            { hasSkipped: true, state: tile.state, timestamp }
+            { status: 'skipped', state: tile.state, timestamp }
           );
 
           this.logger.info({
@@ -179,11 +179,11 @@ export class TileProcessor {
           minZoom: tile.z,
           maxZoom: tile.z,
           kits: [this.project.name],
-          bbox: [west, south, east, north],
+          area: [west, south, east, north],
         });
 
         for await (const cooldowns of cooldownsGenerator) {
-          const isCooling = cooldowns.map((cooldown) => cooldown.duration > cooled).length > 0;
+          const isCooling = cooldowns.filter((cooldown) => cooldown.duration > cooled).length > 0;
 
           this.logger.info({
             msg: 'tile processing should be skipped due to active cooldown',
@@ -197,7 +197,7 @@ export class TileProcessor {
           if (isCooling) {
             await this.detiler.setTileDetails(
               { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
-              { hasSkipped: true, state: tile.state, timestamp }
+              { status: 'cooled', state: tile.state, timestamp }
             );
 
             result = { shouldSkipProcessing: true, reason: 'cooldown' };
@@ -233,7 +233,10 @@ export class TileProcessor {
     const postProcessTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'post_process' });
 
     try {
-      await this.detiler.setTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y }, { state: tile.state, timestamp });
+      await this.detiler.setTileDetails(
+        { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
+        { status: 'rendered', state: tile.state, timestamp }
+      );
     } catch (error) {
       this.logger.error({ msg: 'an error occurred while post processing, skipping details set', error });
       if (!this.detilerProceedOnFailure) {
