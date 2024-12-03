@@ -69,7 +69,7 @@ export class TileProcessor {
       });
 
       this.preProcessResultsCounter = new client.Counter({
-        name: 'retiler_pre_process_resuls_count',
+        name: 'retiler_pre_process_results_count',
         help: 'The results of the pre process',
         labelNames: ['result', 'z'] as const,
         registers: [registry],
@@ -207,7 +207,9 @@ export class TileProcessor {
         }
       }
 
-      return { shouldSkipProcessing: false, reason: 'project_updated' };
+      result = { shouldSkipProcessing: false, reason: 'project_updated' };
+
+      return result;
     } catch (error) {
       this.logger.error({ msg: 'an error occurred while pre processing, tile will be processed', error });
 
