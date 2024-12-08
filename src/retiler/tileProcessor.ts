@@ -3,6 +3,7 @@ import { Logger } from '@map-colonies/js-logger';
 import { IDetilerClient } from '@map-colonies/detiler-client';
 import { inject, injectable } from 'tsyringe';
 import { AxiosInstance } from 'axios';
+import { TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { IConfig } from '../common/interfaces';
 import { IProjectConfig } from '../common/interfaces';
 import { fetchTimestampValue, timestampToUnix } from '../common/util';
@@ -18,6 +19,14 @@ import {
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
 import { TileWithMetadata } from './types';
 
+type SkipReason = 'tile_up_to_date' | 'cooldown';
+type ProcessReason = 'project_updated' | 'force' | 'no_detiler' | 'error_occurred';
+
+interface PreProcessReult {
+  shouldSkipProcessing: boolean;
+  reason?: ProcessReason | SkipReason;
+}
+
 @injectable()
 export class TileProcessor {
   private readonly project: IProjectConfig;
@@ -25,6 +34,7 @@ export class TileProcessor {
   private readonly detilerProceedOnFailure: boolean;
 
   private readonly tilesCounter?: client.Counter<'status' | 'z'>;
+  private readonly preProcessResultsCounter?: client.Counter<'result' | 'z'>;
   private readonly tilesDurationHistogram?: client.Histogram<'z' | 'kind'>;
 
   public constructor(
@@ -57,6 +67,13 @@ export class TileProcessor {
         labelNames: ['status', 'z'] as const,
         registers: [registry],
       });
+
+      this.preProcessResultsCounter = new client.Counter({
+        name: 'retiler_pre_process_results_count',
+        help: 'The results of the pre process',
+        labelNames: ['result', 'z'] as const,
+        registers: [registry],
+      });
     }
   }
 
@@ -66,8 +83,9 @@ export class TileProcessor {
       const preRenderTimestamp = Math.floor(Date.now() / MILLISECONDS_IN_SECOND);
 
       // check if possibly the tile processing can be skipped according to detiler
-      const shouldSkip = await this.preProcess(tile, preRenderTimestamp);
-      if (shouldSkip) {
+      const { shouldSkipProcessing } = await this.preProcess(tile, preRenderTimestamp);
+
+      if (shouldSkipProcessing) {
         this.tilesCounter?.inc({ status: 'skipped', z: tile.z });
         return;
       }
@@ -104,16 +122,21 @@ export class TileProcessor {
     }
   }
 
-  private async preProcess(tile: TileWithMetadata, timestamp: number): Promise<boolean> {
-    const isForced = this.forceProcess || tile.force === true;
-
-    if (this.detiler === undefined || isForced) {
-      return false;
-    }
-
-    const detilerGetTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'detilerGet' });
+  private async preProcess(tile: TileWithMetadata, timestamp: number): Promise<PreProcessReult> {
+    let preProcessTimerEnd;
+    let result: PreProcessReult = { shouldSkipProcessing: false };
 
     try {
+      // check for forced rendering or if detiler option is off
+      const isForced = this.forceProcess || tile.force === true;
+
+      if (isForced || this.detiler === undefined) {
+        result = { shouldSkipProcessing: false, reason: isForced ? 'force' : 'no_detiler' };
+        return result;
+      }
+
+      preProcessTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'pre_process' });
+
       // attempt to get latest tile details
       const tileDetails = await this.detiler.getTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y });
 
@@ -129,20 +152,77 @@ export class TileProcessor {
         if (tileDetails.renderedAt >= projectTimestamp) {
           await this.detiler.setTileDetails(
             { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
-            { hasSkipped: true, state: tile.state, timestamp }
+            { status: 'skipped', state: tile.state, timestamp }
           );
-          this.logger.info({ msg: 'skipping tile processing', tile, tileDetails, sourceUpdatedAt: projectTimestamp });
-          return true;
+
+          this.logger.info({
+            msg: 'tile processing can be skipping due to tile being up do date',
+            tile,
+            tileDetails,
+            sourceUpdatedAt: projectTimestamp,
+          });
+
+          result = { shouldSkipProcessing: true, reason: 'tile_up_to_date' };
+
+          return result;
+        }
+
+        // tile geometry in bbox
+        const { west, south, east, north } = tileToBoundingBox(tile, TILEGRID_WORLD_CRS84, true);
+
+        // time elapsed since last rendered
+        const cooled = timestamp - tileDetails.renderedAt;
+
+        // only render if the time elapsed is longer than the relavant cooldowns duration otherwise the tile is still cooling
+        const cooldownsGenerator = this.detiler.queryCooldownsAsyncGenerator({
+          enabled: true,
+          minZoom: tile.z,
+          maxZoom: tile.z,
+          kits: [this.project.name],
+          area: [west, south, east, north],
+        });
+
+        for await (const cooldowns of cooldownsGenerator) {
+          const isCooling = cooldowns.filter((cooldown) => cooldown.duration > cooled).length > 0;
+
+          this.logger.info({
+            msg: 'tile processing should be skipped due to active cooldown',
+            tile,
+            tileDetails,
+            tileCooled: cooled,
+            cooldowns,
+            sourceUpdatedAt: projectTimestamp,
+          });
+
+          if (isCooling) {
+            await this.detiler.setTileDetails(
+              { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
+              { status: 'cooled', state: tile.state, timestamp }
+            );
+
+            result = { shouldSkipProcessing: true, reason: 'cooldown' };
+
+            return result;
+          }
         }
       }
 
-      return false;
+      result = { shouldSkipProcessing: false, reason: 'project_updated' };
+
+      return result;
     } catch (error) {
       this.logger.error({ msg: 'an error occurred while pre processing, tile will be processed', error });
-      return false;
+
+      result = { shouldSkipProcessing: false, reason: 'error_occurred' };
+
+      return result;
     } finally {
-      if (detilerGetTimerEnd) {
-        detilerGetTimerEnd();
+      this.logger.info({ msg: 'pre processing done', tile, result });
+
+      this.preProcessResultsCounter?.inc({ result: result.reason, z: tile.z });
+
+      if (preProcessTimerEnd) {
+        preProcessTimerEnd();
       }
     }
   }
@@ -152,18 +232,21 @@ export class TileProcessor {
       return;
     }
 
-    const detilerSetTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'detilerSet' });
+    const postProcessTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'post_process' });
 
     try {
-      await this.detiler.setTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y }, { state: tile.state, timestamp });
+      await this.detiler.setTileDetails(
+        { kit: this.project.name, z: tile.z, x: tile.x, y: tile.y },
+        { status: 'rendered', state: tile.state, timestamp }
+      );
     } catch (error) {
       this.logger.error({ msg: 'an error occurred while post processing, skipping details set', error });
       if (!this.detilerProceedOnFailure) {
         throw error;
       }
     } finally {
-      if (detilerSetTimerEnd) {
-        detilerSetTimerEnd();
+      if (postProcessTimerEnd) {
+        postProcessTimerEnd();
       }
     }
   }

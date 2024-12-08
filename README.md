@@ -18,13 +18,22 @@ The fetched metatile image will be splitted into 256x256 pixels tiles in a PNG f
 ## How it works
 ```mermaid
 flowchart TD
-    A[Start] --> B{IsQueueEmpty}
+    A[Start] --> B{Is Queue Empty?}
     B -- yes --> G[Finish]
     B -- no --> C([Fetch Tile])
-    C -->D([Get Map])
+    C --> I{Is Forced?}
+    I -- no -->J([Get Tile Details])
+    J -->N([Get Project Details])
+    N -->M{Is Tile Up To Date?}
+    M -- yes, skipped -->H
+    M -- no -->O{Is Cooledowned?}
+    O -- yes, cooled --> H
+    O -- no --> D
+    I -- yes -->D([Get Map])
     D -->E([Split Map])
     E -->F([Store Tiles])
-    F --> B
+    F -- rendered -->H([Upsert Tile Details])
+    H --> B
 ```
 
 ## config

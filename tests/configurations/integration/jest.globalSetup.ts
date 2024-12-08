@@ -3,6 +3,8 @@ import { S3Client, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/clien
 import config from 'config';
 import { S3StorageProviderConfig, StorageProviderConfig } from '../../../src/retiler/tilesStorageProvider/interfaces';
 
+process.env.ALLOW_CONFIG_MUTATIONS = 'true'; // @aws-sdk/client-s3 attempts to modify config on tests
+
 export default async (): Promise<void> => {
   const storageProvidersConfig = config.get<StorageProviderConfig[]>('app.tilesStorage.providers');
 
