@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.2.0](https://github.com/MapColonies/retiler/compare/v3.1.1...v3.2.0) (2024-12-08)
+
+
+### Features
+
+* tile rendering pre-process cooldown validation ([#39](https://github.com/MapColonies/retiler/issues/39)) ([c3408b0](https://github.com/MapColonies/retiler/commit/c3408b05ddabc765ac9315d0f19e54368ff6fdd1))
+
 ### [3.1.1](https://github.com/MapColonies/retiler/compare/v3.1.0...v3.1.1) (2024-10-21)
 
 ## [3.1.0](https://github.com/MapColonies/retiler/compare/v3.0.0...v3.1.0) (2024-08-13)
