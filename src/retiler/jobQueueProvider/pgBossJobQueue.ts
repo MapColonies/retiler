@@ -1,10 +1,10 @@
 import EventEmitter from 'node:events';
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import PgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
-import { serializeError } from 'serialize-error';
+import { serializeError } from '@common.js/serialize-error';
 import { METRICS_REGISTRY, QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
 import { JobQueueProvider } from '../interfaces';
 
@@ -18,7 +18,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   private readonly jobFinishedEventName = 'jobFinished';
 
   public constructor(
-    private readonly pgBoss: PgBoss,
+    @inject(PgBoss) private readonly pgBoss: PgBoss,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
     @inject(QUEUE_EMPTY_TIMEOUT) private readonly queueWaitTimeout: number,
