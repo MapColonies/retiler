@@ -9,7 +9,7 @@
     "jobQueue": {
       "waitTimeout": 50,
       "pgBoss": {
-        "host": "postgres",
+        "host": "localhost",
         "port": 5432,
         "user": "postgres",
         "password": "1234",
@@ -23,7 +23,7 @@
       "providers": [
         {
           "kind": "s3",
-          "endpoint": "http://localhost:9000",
+          "endpoint": "http://localhost:9003",
           "bucketName": "test1",
           "region": "us-east-1",
           "forcePathStyle": true,
@@ -34,7 +34,7 @@
         },
         {
           "kind": "s3",
-          "endpoint": "http://localhost:9000",
+          "endpoint": "http://localhost:9004",
           "bucketName": "test2",
           "region": "us-east-1",
           "forcePathStyle": true,
