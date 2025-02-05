@@ -66,6 +66,7 @@ describe('FsTilesStorage', () => {
     });
 
     it('should throw an error if the request failed', async function () {
+      const createDirectorySpy = jest.spyOn(FsTilesStorage.prototype, 'createDirectoryIfNotExists');
       const errorMessage = 'request failure error';
       const error = new Error(errorMessage);
       (fs.existsSync as jest.Mock).mockReturnValue(true);
@@ -80,7 +81,7 @@ describe('FsTilesStorage', () => {
       });
 
       await expect(promise).rejects.toThrow(errorMessage);
-      expect(fs.existsSync).toHaveBeenCalledTimes(1);
+      expect(createDirectorySpy).toHaveBeenCalledTimes(1);
       expect(fsPromises.mkdir).toHaveBeenCalledTimes(0);
       expect(fsPromises.writeFile).toHaveBeenCalledTimes(1);
     });
@@ -110,6 +111,7 @@ describe('FsTilesStorage', () => {
     });
 
     it('should throw an error if one of the requests had failed', async function () {
+      const createDirectorySpy = jest.spyOn(FsTilesStorage.prototype, 'createDirectoryIfNotExists');
       const errorMessage = 'request failure error';
       const error = new Error(errorMessage);
       (fs.existsSync as jest.Mock).mockReturnValueOnce(false).mockResolvedValue(true);
@@ -125,7 +127,7 @@ describe('FsTilesStorage', () => {
       ]);
 
       await expect(promise).rejects.toThrow(errorMessage);
-      expect(fs.existsSync).toHaveBeenCalledTimes(2);
+      expect(createDirectorySpy).toHaveBeenCalledTimes(2);
       expect(fsPromises.mkdir).toHaveBeenCalledTimes(1);
       expect(fsPromises.writeFile).toHaveBeenCalledTimes(2);
     });
