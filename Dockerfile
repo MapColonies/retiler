@@ -1,4 +1,4 @@
-FROM node:16-alpine3.16 as build
+FROM node:22 as build
 
 WORKDIR /tmp/buildApp
 
@@ -8,7 +8,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM node:16-alpine3.16 as production
+FROM node:22-alpine3.17 as production
 
 RUN apk add dumb-init
 
