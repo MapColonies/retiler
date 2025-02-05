@@ -1098,7 +1098,7 @@ describe('retiler', function () {
 
         const consumePromise = consumeAndProcessFactory(container)();
 
-        await setTimeoutPromise(5);
+        await setTimeoutPromise(20);
         await provider.stopQueue();
 
         await expect(consumePromise).resolves.not.toThrow();
