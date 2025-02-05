@@ -18,7 +18,6 @@ import {
   SERVICE_NAME,
   TILES_STORAGE_PROVIDERS,
   TILES_STORAGE_LAYOUT,
-  LIVENESS_PROBE_FACTORY,
   CONSUME_AND_PROCESS_FACTORY,
   MAP_FORMAT,
   MAP_PROVIDER_CONFIG,
@@ -28,14 +27,13 @@ import {
   ON_SIGNAL,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { tracing } from './common/tracing';
+import { getTracing } from './common/tracing';
 import { JobQueueProvider } from './retiler/interfaces';
 import { PgBossJobQueueProvider } from './retiler/jobQueueProvider/pgBossJobQueue';
 import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFactory';
 import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvider';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
-import { livenessProbeFactory } from './common/liveness';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
 import { MapProviderType } from './retiler/types';
@@ -50,7 +48,6 @@ export interface RegisterOptions {
 
 export const registerExternalValues = async (options?: RegisterOptions): Promise<DependencyContainer> => {
   const cleanupRegistry = new CleanupRegistry();
-
   try {
     const queueName = config.get<string>('app.queueName');
     const queueTimeout = config.get<number>('app.jobQueue.waitTimeout');
@@ -81,7 +78,12 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           useFactory: instancePerContainerCachingFactory((container) => {
             const tracer = trace.getTracer(SERVICE_NAME);
             const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
-            cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
+            cleanupRegistry.register({
+              func: async () => {
+                await getTracing().stop();
+              },
+              id: SERVICES.TRACER,
+            });
             return tracer;
           }),
         },
@@ -122,7 +124,6 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         },
       },
       { token: METRICS_BUCKETS, provider: { useValue: config.get('telemetry.metrics.buckets') } },
-      { token: LIVENESS_PROBE_FACTORY, provider: { useFactory: livenessProbeFactory } },
       {
         token: SERVICES.HTTP_CLIENT,
         provider: {
