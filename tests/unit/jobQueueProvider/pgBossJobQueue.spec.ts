@@ -2,7 +2,7 @@ import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
 import PgBoss from 'pg-boss';
-import { serializeError } from 'serialize-error';
+import { serializeError } from '@common.js/serialize-error';
 import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pgBossJobQueue';
 import { LONG_RUNNING_TEST } from '../../integration/helpers';
 
