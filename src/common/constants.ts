@@ -15,7 +15,6 @@ export const TILES_STORAGE_PROVIDERS = Symbol('TilesStorageProviders');
 export const METRICS_BUCKETS = Symbol('metrics_buckets');
 
 export const CONSUME_AND_PROCESS_FACTORY = Symbol('ConsumeAndProcessFactory');
-export const LIVENESS_PROBE_FACTORY = Symbol('LivenessProbeFactory');
 
 export const QUEUE_NAME = Symbol('QueueName');
 export const QUEUE_EMPTY_TIMEOUT = Symbol('QueueTimeout');
@@ -35,7 +34,7 @@ export const SERVICES: Record<string, symbol> = {
   LOGGER: Symbol('Logger'),
   CONFIG: Symbol('Config'),
   TRACER: Symbol('Tracer'),
-  METER: Symbol('Meter'),
+  METRICS: Symbol('METRICS'),
   S3: Symbol('S3'),
   HTTP_CLIENT: Symbol('HttpClient'),
   CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
