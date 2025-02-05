@@ -5,13 +5,13 @@ const GENERAL_VALIDATION_ERROR = 'invalid content';
 
 const ajv = new Ajv({ allErrors: true });
 
-interface ValidationResponse<T> {
+export interface ValidationResponse<T> {
   isValid: boolean;
   errors?: string | ErrorObject<string, Record<string, unknown>>[];
   content?: T;
 }
 
-function validate<T>(content: unknown, schema: JSONSchemaType<T>): ValidationResponse<T> {
+export function validate<T>(content: unknown, schema: JSONSchemaType<T>): ValidationResponse<T> {
   const isValid = ajv.validate(schema, content);
 
   if (!isValid) {
@@ -21,5 +21,3 @@ function validate<T>(content: unknown, schema: JSONSchemaType<T>): ValidationRes
 
   return { isValid, content };
 }
-
-export { validate, ValidationResponse };
