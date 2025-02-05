@@ -11,7 +11,11 @@ import { getFlippedY } from '../util';
 import { TileStoragLayout } from './interfaces';
 
 export class FsTilesStorage implements TilesStorageProvider {
-  public constructor(private readonly logger: Logger, private readonly baseStoragePath: string, private readonly storageLayout: TileStoragLayout) {
+  public constructor(
+    private readonly logger: Logger,
+    private readonly baseStoragePath: string,
+    private readonly storageLayout: TileStoragLayout
+  ) {
     this.logger.info({ msg: 'initializing FS tile storage', baseStoragePath: this.baseStoragePath, storageLayout });
   }
 
@@ -23,10 +27,7 @@ export class FsTilesStorage implements TilesStorageProvider {
     const storagePath = join(this.baseStoragePath, key);
 
     try {
-      const dir = dirname(storagePath);
-      if (!existsSync(dir)) {
-        await mkdir(dir, { recursive: true });
-      }
+      await this.createDirectoryIfNotExists(storagePath);
       await writeFile(storagePath, buffer);
     } catch (error) {
       const fsError = error as Error;
@@ -50,6 +51,13 @@ export class FsTilesStorage implements TilesStorageProvider {
     const [, duration] = await timerify(async () => Promise.all(tiles.map(async (tile) => this.storeTile(tile))));
 
     this.logger.debug({ msg: 'finished storing batch of tiles', duration, baseStoragePath: this.baseStoragePath, parent, count: tiles.length });
+  }
+
+  public async createDirectoryIfNotExists(path: string, recursive = true): Promise<void> {
+    const dir = dirname(path);
+    if (!existsSync(dir)) {
+      await mkdir(dir, { recursive });
+    }
   }
 
   private determineKey(tile: Required<Tile>): string {
