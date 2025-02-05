@@ -1,12 +1,12 @@
-import { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AxiosError, type AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { tileToBoundingBox } from '@map-colonies/tile-calc';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
 import { MAP_FORMAT, MAP_PROVIDER_CONFIG, MAP_URL, SERVICES, TILE_SIZE } from '../../../common/constants';
 import { MapProvider } from '../../interfaces';
 import { timerify } from '../../../common/util';
 import { TileWithMetadata } from '../../types';
-import { BASE_REQUEST_PARAMS, getVersionDepParams, WmsConfig, WmsRequestParams } from './requestParams';
+import { BASE_REQUEST_PARAMS, getVersionDepParams, type WmsConfig, WmsRequestParams } from './requestParams';
 
 @injectable()
 export class WmsMapProvider implements MapProvider {
@@ -45,8 +45,8 @@ export class WmsMapProvider implements MapProvider {
         this.mapUrl,
         requestConfig
       );
-
-      if (response.headers['content-type'].includes('xml')) {
+      const responseContentType = <(typeof response.headers)['Content-Type']>(response.headers['content-type'] ?? response.headers['Content-Type']);
+      if (responseContentType?.toString().includes('xml') ?? false) {
         throw new Error('The response returned from the service was in xml format');
       }
 

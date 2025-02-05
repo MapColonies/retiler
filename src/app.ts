@@ -1,4 +1,4 @@
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { FactoryFunction } from 'tsyringe';
 import { JOB_QUEUE_PROVIDER, SERVICES, TILES_STORAGE_PROVIDERS } from './common/constants';
 import { IConfig } from './common/interfaces';

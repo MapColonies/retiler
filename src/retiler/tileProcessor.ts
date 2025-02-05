@@ -1,10 +1,10 @@
 import client from 'prom-client';
-import { Logger } from '@map-colonies/js-logger';
-import { IDetilerClient } from '@map-colonies/detiler-client';
+import { type Logger } from '@map-colonies/js-logger';
+import { type IDetilerClient } from '@map-colonies/detiler-client';
 import { inject, injectable } from 'tsyringe';
-import { AxiosInstance } from 'axios';
+import { type AxiosInstance } from 'axios';
 import { TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
-import { IConfig } from '../common/interfaces';
+import { type IConfig } from '../common/interfaces';
 import { IProjectConfig } from '../common/interfaces';
 import { fetchTimestampValue, timestampToUnix } from '../common/util';
 import {
@@ -16,7 +16,7 @@ import {
   SERVICES,
   TILES_STORAGE_PROVIDERS,
 } from '../common/constants';
-import { MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
+import { type MapProvider, type MapSplitterProvider, type TilesStorageProvider } from './interfaces';
 import { TileWithMetadata } from './types';
 
 type SkipReason = 'tile_up_to_date' | 'cooldown';

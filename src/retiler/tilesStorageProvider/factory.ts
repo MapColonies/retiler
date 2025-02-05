@@ -1,5 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { IConfig } from 'config';
 import { FactoryFunction } from 'tsyringe';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
