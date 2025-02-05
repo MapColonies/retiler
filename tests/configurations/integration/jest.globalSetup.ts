@@ -21,9 +21,9 @@ export default async (): Promise<void> => {
     try {
       await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
     } catch (error) {
-      console.log(serializeError(error));
       const s3Error = error as Error;
       if (s3Error.name !== 'NotFound') {
+        console.log(serializeError(error));
         throw s3Error;
       }
       await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
