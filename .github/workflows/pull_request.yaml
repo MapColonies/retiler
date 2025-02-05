@@ -105,7 +105,7 @@ jobs:
         shell: bash
 
       - name: Create pgcrypto extension
-        run: psql -h postgres -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
+        run: psql -h $DB_HOST -d $DB_NAME -U $DB_USERNAME -c 'CREATE EXTENSION pgcrypto;'
         env:
           PGPASSWORD: ${{ env.DB_PASSWORD }}
 
