@@ -15,7 +15,6 @@ export default async (): Promise<void> => {
     }
 
     const { kind, bucketName, ...clientConfig } = provider as S3StorageProviderConfig;
-    console.log(clientConfig);
     const s3Client = new S3Client(clientConfig);
 
     try {
