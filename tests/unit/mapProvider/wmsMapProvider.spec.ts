@@ -18,7 +18,7 @@ describe('wmsMapProvider', () => {
     });
 
     it('should resolve into a buffer if the request has completed with wms version 1.1.1', async function () {
-      const wmsConfig: WmsConfig = { version: '1.1.1', layers: 'someLayer', styles: 'someStyle' };
+      const wmsConfig: WmsConfig = { version: '1.1.1', layers: 'z0', styles: 'someStyle' };
       const wmsProv = new WmsMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'image/png', wmsConfig);
 
       /* eslint-disable @typescript-eslint/naming-convention */
@@ -63,6 +63,36 @@ describe('wmsMapProvider', () => {
       expect(wmsReqParams).not.toHaveProperty('srs');
       expect(wmsReqParams).toMatchObject({
         ...wmsConfig,
+        crs: 'EPSG:4326',
+        format: 'image/png',
+        bbox: '-90,-180,90,0',
+      });
+
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.toString()).toBe('test');
+    });
+
+    it('should resolve into a buffer if the request has completed with wms version 1.3.0 with isZoomlayer=true', async function () {
+      const wmsConfig: WmsConfig = { version: '1.3.0', layers: 'someLayer', styles: 'someStyle', isZoomLayers: true };
+
+      const wmsProv = new WmsMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'image/png', wmsConfig);
+
+      /* eslint-disable @typescript-eslint/naming-convention */
+      const response = { data: Buffer.from('test'), headers: { 'content-type': 'image/png' } };
+      mockedClient.get.mockResolvedValue(response);
+
+      const tile = { z: 0, x: 0, y: 0, metatile: 1 };
+
+      const buffer = await wmsProv.getMap(tile);
+
+      const wmsReqParams = mockedClient.get.mock.calls[0][1]?.params as WmsRequestParams;
+
+      expect(mockedClient.get.mock.calls).toHaveLength(1);
+      expect(wmsReqParams).not.toHaveProperty('srs');
+      const { isZoomLayers, ...expectedWmsConfig } = wmsConfig;
+      expect(wmsReqParams).toMatchObject({
+        ...expectedWmsConfig,
+        layers: 'z0',
         crs: 'EPSG:4326',
         format: 'image/png',
         bbox: '-90,-180,90,0',
