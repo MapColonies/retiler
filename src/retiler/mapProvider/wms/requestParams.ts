@@ -5,9 +5,10 @@ export interface WmsConfig {
   version: WmsVersion;
   layers: string;
   styles: string;
+  isZoomLayers?: boolean;
 }
 
-export interface WmsRequestParams extends WmsVersionDependentRequestParams, WmsConfig {
+export interface WmsRequestParams extends WmsVersionDependentRequestParams, Omit<WmsConfig, 'isZoomLayers'> {
   format: string;
   service: string;
   request: string;

@@ -84,7 +84,11 @@
       "wms": {
         "version": "MAP_WMS_VERSION",
         "layers": "MAP_WMS_LAYERS",
-        "styles": "MAP_WMS_STYLES"
+        "styles": "MAP_WMS_STYLES",
+        "isZoomLayers": {
+          "__name": "MAP_WMS_ZOOM_LAYERS",
+          "__format": "boolean"
+        }
       }
     },
     "tilesStorage": {

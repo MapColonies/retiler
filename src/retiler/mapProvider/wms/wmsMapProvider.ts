@@ -26,10 +26,13 @@ export class WmsMapProvider implements MapProvider {
     const bbox = tileToBoundingBox(baseTile);
     const mapSizePerAxis = tile.metatile * TILE_SIZE;
 
+    const { isZoomLayers, ...wmsConfig } = this.wmsConfig;
+
     const requestParams: WmsRequestParams = {
       ...BASE_REQUEST_PARAMS,
       ...getVersionDepParams(this.wmsConfig.version, bbox),
-      ...this.wmsConfig,
+      ...wmsConfig,
+      layers: (isZoomLayers ?? false) ? `z${baseTile.z}` : wmsConfig.layers,
       format: this.mapFormat,
       width: mapSizePerAxis,
       height: mapSizePerAxis,
