@@ -27,7 +27,7 @@ void registerExternalValues()
     const stubHealthCheck = async (): Promise<void> => Promise.resolve();
 
     // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-misused-promises
-    const server = createTerminus(createServer(app), { healthChecks: { '/liveness': stubHealthCheck }, onSignal: container.resolve('onSignal') });
+    const server = createTerminus(createServer(app), { healthChecks: { '/liveness': stubHealthCheck }, onSignal: container.resolve(ON_SIGNAL) });
 
     cleanupRegistry.register({
       func: async () => {
