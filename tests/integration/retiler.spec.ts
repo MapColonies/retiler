@@ -14,6 +14,7 @@ import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { registerExternalValues } from '../../src/containerConfig';
 import { consumeAndProcessFactory } from '../../src/app';
 import {
+  CONSUME_AND_PROCESS_FACTORY,
   JOB_QUEUE_PROVIDER,
   MAP_URL,
   METRICS_REGISTRY,
@@ -154,7 +155,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -195,7 +196,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent', state: 666 } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -237,7 +238,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -270,7 +271,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -314,7 +315,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -357,7 +358,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -388,7 +389,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent', force: true } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -440,7 +441,7 @@ describe('retiler', function () {
 
           const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const [job1, job2, job3] = await Promise.all([
             waitForJobToBeResolved(pgBoss, jobId1 as string),
@@ -485,7 +486,7 @@ describe('retiler', function () {
 
           const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const [job1, job2, job3] = await Promise.all([
             waitForJobToBeResolved(pgBoss, jobId1 as string),
@@ -531,7 +532,7 @@ describe('retiler', function () {
 
           const [jobId1, jobId2, jobId3] = await Promise.all([pgBoss.send(request1), pgBoss.send(request2), pgBoss.send(request3)]);
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const [job1, job2, job3] = await Promise.all([
             waitForJobToBeResolved(pgBoss, jobId1 as string),
@@ -566,7 +567,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -595,7 +596,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -624,7 +625,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -652,7 +653,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -679,7 +680,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -707,7 +708,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -737,7 +738,7 @@ describe('retiler', function () {
 
           const error = new Error('storing error');
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           jest.spyOn(storageProviders[0], 'storeTile').mockRejectedValue(error);
@@ -771,7 +772,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -803,7 +804,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -901,7 +902,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -944,7 +945,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -973,7 +974,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -1054,7 +1055,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -1096,7 +1097,7 @@ describe('retiler', function () {
 
         await pgBoss.insert([request1, request2, request3, request4, request5]);
 
-        const consumePromise = consumeAndProcessFactory(container)();
+        const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
         await setTimeoutPromise(20);
         await provider.stopQueue();
@@ -1173,7 +1174,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
@@ -1215,7 +1216,7 @@ describe('retiler', function () {
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
-          const consumePromise = consumeAndProcessFactory(container)();
+          const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
