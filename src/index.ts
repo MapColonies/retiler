@@ -4,14 +4,18 @@ import 'reflect-metadata';
 import { createServer } from 'http';
 import express from 'express';
 import { type Logger } from '@map-colonies/js-logger';
+import { metricsMiddleware } from '@map-colonies/telemetry/prom-metrics';
+import { Registry } from 'prom-client';
 import { createTerminus } from '@godaddy/terminus';
 import { DependencyContainer } from 'tsyringe';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
-import { CONSUME_AND_PROCESS_FACTORY, DEFAULT_PORT, ExitCodes, ON_SIGNAL, SERVICES } from './common/constants';
+import { CONSUME_AND_PROCESS_FACTORY, DEFAULT_PORT, ExitCodes, METRICS_REGISTRY, ON_SIGNAL, SERVICES } from './common/constants';
 import { registerExternalValues } from './containerConfig';
 import { IConfig, IServerConfig } from './common/interfaces';
 
 let depContainer: DependencyContainer | undefined;
+
+process.env['ALLOW_CONFIG_MUTATIONS'] = 'true';
 
 void registerExternalValues()
   .then(async (container) => {
@@ -19,11 +23,11 @@ void registerExternalValues()
 
     const config = container.resolve<IConfig>(SERVICES.CONFIG);
     const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
-    // const registry = container.resolve<Registry>(METRICS_REGISTRY);
+    const registry = container.resolve<Registry>(METRICS_REGISTRY);
 
     const app = express();
 
-    // app.use('/metrics', metricsMiddleware(registry));
+    app.use('/metrics', metricsMiddleware(registry));
     const stubHealthCheck = async (): Promise<void> => Promise.resolve();
 
     // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-misused-promises
