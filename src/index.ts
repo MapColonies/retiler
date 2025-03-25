@@ -15,8 +15,6 @@ import { IConfig, IServerConfig } from './common/interfaces';
 
 let depContainer: DependencyContainer | undefined;
 
-process.env['ALLOW_CONFIG_MUTATIONS'] = 'true';
-
 void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
