@@ -64,6 +64,7 @@ describe('retiler', function () {
   let stateBuffer: Buffer;
   let mapBuffer2048x2048: Buffer;
   let mapBuffer512x512: Buffer;
+  let emptyMapBuffer: Buffer;
   let determineKey: (tile: Required<Tile>) => string;
 
   beforeAll(async () => {
@@ -80,6 +81,7 @@ describe('retiler', function () {
     stateBuffer = await fsPromises.readFile('tests/state.txt');
     mapBuffer512x512 = await fsPromises.readFile('tests/512x512.png');
     mapBuffer2048x2048 = await fsPromises.readFile('tests/2048x2048.png');
+    emptyMapBuffer = await fsPromises.readFile('tests/threeFourthsEmpty.png');
   });
 
   afterEach(function () {
@@ -1234,5 +1236,87 @@ describe('retiler', function () {
         LONG_RUNNING_TEST
       );
     });
+  });
+
+  describe('blankTilesFilterer', function () {
+    let container: DependencyContainer;
+    beforeAll(async () => {
+      container = await registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.tilesStorage.shouldFilterBlankTiles':
+                      return true;
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
+        ],
+        useChild: true,
+      });
+
+      const storageLayout = container.resolve<TileStoragLayout>(TILES_STORAGE_LAYOUT);
+
+      determineKey = (tile: Required<Tile>): string => {
+        if (storageLayout.shouldFlipY) {
+          tile.y = getFlippedY(tile);
+        }
+        const key = Format(storageLayout.format, tile);
+        return key;
+      };
+    });
+
+    afterEach(async () => {
+      const pgBoss = container.resolve(PgBoss);
+      await pgBoss.clearStorage();
+    });
+
+    afterAll(async () => {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
+
+    it(
+      'should filter out blank tiles',
+      async function () {
+        detilerPutInterceptor.reply(httpStatusCodes.OK);
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, emptyMapBuffer);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+        const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'completed');
+
+        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
   });
 });
