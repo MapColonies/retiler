@@ -4,6 +4,7 @@ export interface TileMetadata {
   parent: string;
   state?: number;
   force?: boolean;
+  isBlank?: boolean;
 }
 
 export type TileWithMetadata = Required<Tile> & Partial<TileMetadata>;

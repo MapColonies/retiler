@@ -27,10 +27,12 @@ export const MAP_PROVIDER_CONFIG = Symbol('MapProviderConfig');
 export const S3_BUCKET = Symbol('S3Bucket');
 export const TILES_STORAGE_LAYOUT = Symbol('TilesStorageLayout');
 
+export const SHOULD_FILTER_BLANK_TILES = Symbol('ShouldFilterBlankTiles');
+
 export const TILE_SIZE = 256;
 
 /* eslint-disable @typescript-eslint/naming-convention */
-export const SERVICES: Record<string, symbol> = {
+export const SERVICES = {
   LOGGER: Symbol('Logger'),
   CONFIG: Symbol('Config'),
   TRACER: Symbol('Tracer'),
@@ -39,7 +41,7 @@ export const SERVICES: Record<string, symbol> = {
   HTTP_CLIENT: Symbol('HttpClient'),
   CLEANUP_REGISTRY: Symbol('CleanupRegistry'),
   DETILER: Symbol('Detiler'),
-};
+} satisfies Record<string, symbol>;
 
 export const ExitCodes: Record<string, number> = {
   SUCCESS: 0,

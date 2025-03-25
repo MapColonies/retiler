@@ -102,6 +102,10 @@
           "__name": "TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y",
           "__format": "boolean"
         }
+      },
+      "shouldFilterBlankTiles": {
+        "__name": "TILES_STORAGE_SHOULD_FILTER_BLANK_TILES",
+        "__format": "boolean"
       }
     }
   },

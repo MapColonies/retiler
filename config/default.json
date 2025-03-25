@@ -14,7 +14,7 @@
     "shared": {}
   },
   "server": {
-    "port": "8080"
+    "port": "8082"
   },
   "app": {
     "project": {
@@ -22,7 +22,7 @@
       "stateUrl": "defaultStateUrl"
     },
     "forceProcess": false,
-    "queueName": "QUEUE_NAME",
+    "queueName": "tiles-default",
     "parallelism": 5,
     "jobQueue": {
       "waitTimeout": 5000,
@@ -38,16 +38,19 @@
           "key": "",
           "cert": ""
         },
-        "database": "pgboss",
+        "database": "postgres",
         "noSupervisor": true
       }
     },
     "map": {
-      "provider": "arcgis",
-      "url": "https://some-domain.com/api/",
-      "format": "png32",
+      "provider": "wms",
+      "url": "https://vector-qgis-server-np.apps.j1lk3njp.eastus.aroapp.io/qgis-server?MAP=data/gush/gush.qgs",
+      "format": "image/png",
       "wms": {
-        "version": "1.3.0"
+        "version": "1.3.0",
+        "layers": "SUB_GUSH_ALL",
+        "isZoomLayers": false,
+        "styles": ""
       },
       "client": {
         "timeoutMs": 60000
@@ -57,23 +60,25 @@
       "providers": [
         {
           "kind": "s3",
-          "endpoint": "http://s3-domain/",
-          "bucketName": "bucket-name",
+          "endpoint": "http://localhost:9000/",
+          "bucketName": "test1",
           "region": "region",
           "forcePathStyle": true,
           "credentials": {
-            "accessKeyId": "accessKeyId",
-            "secretAccessKey": "secret"
+            "accessKeyId": "minio",
+            "secretAccessKey": "minio123"
           }
         }
-      ]
-    },
-    "layout": {
-      "format": "prefix/{z}/{x}/{y}.png",
-      "shouldFlipY": true
+      ],
+      "layout": {
+        "format": "test/{z}/{x}/{y}.png",
+        "shouldFlipY": true
+      },
+      "shouldFilterBlankTiles": false
     }
   },
   "detiler": {
-    "enabled": false
+    "enabled": false,
+    "proceedOnFailure": true
   }
 }

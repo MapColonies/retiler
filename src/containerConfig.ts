@@ -25,6 +25,7 @@ import {
   METRICS_BUCKETS,
   METRICS_REGISTRY,
   ON_SIGNAL,
+  SHOULD_FILTER_BLANK_TILES,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
 import { getTracing } from './common/tracing';
@@ -177,6 +178,15 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
               const detiler = new DetilerClient({ ...clientConfig, logger: logger.child({ subComponent: 'detiler' }) });
               return detiler;
             }
+          }),
+        },
+      },
+      {
+        token: SHOULD_FILTER_BLANK_TILES,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            return config.get<boolean>('app.tilesStorage.shouldFilterBlankTiles');
           }),
         },
       },

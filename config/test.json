@@ -35,7 +35,7 @@
         {
           "kind": "s3",
           "endpoint": "http://localhost:9000",
-          "bucketName": "test2",
+          "bucketName": "test3",
           "region": "us-east-1",
           "forcePathStyle": true,
           "credentials": {
@@ -45,7 +45,7 @@
         },
         {
           "kind": "fs",
-          "basePath": "/tmp/test"
+          "basePath": "/tmp/retiler/test"
         }
       ],
       "layout": {
