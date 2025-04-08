@@ -64,7 +64,7 @@ describe('retiler', function () {
   let stateBuffer: Buffer;
   let mapBuffer2048x2048: Buffer;
   let mapBuffer512x512: Buffer;
-  let emptyMapBuffer: Buffer;
+  let threeFourthsEmptyBuffer: Buffer;
   let determineKey: (tile: Required<Tile>) => string;
 
   beforeAll(async () => {
@@ -81,7 +81,7 @@ describe('retiler', function () {
     stateBuffer = await fsPromises.readFile('tests/state.txt');
     mapBuffer512x512 = await fsPromises.readFile('tests/512x512.png');
     mapBuffer2048x2048 = await fsPromises.readFile('tests/2048x2048.png');
-    emptyMapBuffer = await fsPromises.readFile('tests/threeFourthsEmpty.png');
+    threeFourthsEmptyBuffer = await fsPromises.readFile('tests/threeFourthsEmpty.png');
   });
 
   afterEach(function () {
@@ -1292,7 +1292,7 @@ describe('retiler', function () {
       'should filter out blank tiles',
       async function () {
         detilerPutInterceptor.reply(httpStatusCodes.OK);
-        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, emptyMapBuffer);
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, threeFourthsEmptyBuffer);
 
         const pgBoss = container.resolve(PgBoss);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
