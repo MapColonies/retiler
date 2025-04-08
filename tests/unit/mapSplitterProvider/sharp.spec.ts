@@ -9,7 +9,7 @@ describe('SharpMapSplitter', () => {
   describe('#splitMap', () => {
     let splitter: SharpMapSplitter;
     beforeEach(function () {
-      splitter = new SharpMapSplitter(jsLogger({ enabled: false }));
+      splitter = new SharpMapSplitter(jsLogger({ enabled: false }), false);
     });
     afterEach(function () {
       jest.clearAllMocks();
@@ -87,6 +87,26 @@ describe('SharpMapSplitter', () => {
         { z: 0, x: 0, y: 0, metatile: 1 },
         { z: 0, x: 1, y: 0, metatile: 1 },
       ]);
+
+      const assertions = tiles.map(async (tile) => {
+        const metadata = await sharp(tile.buffer).metadata();
+        expect(metadata).toMatchObject({
+          width: 256,
+          height: 256,
+          format: 'png',
+        });
+      });
+      await Promise.all(assertions);
+    });
+
+    it('should split 512x512 image into only 1 tile as it have empty subtiles and SHOULD_FILTER_BLANK_TILES it true', async () => {
+      const splitter = new SharpMapSplitter(jsLogger({ enabled: false }), true);
+      const buffer = await readFile('tests/threeFourthsEmpty.png');
+
+      const tiles = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 2, buffer });
+
+      expect(tiles).toHaveLength(1);
+      expect(tiles).toContainSameTiles([{ z: 1, x: 0, y: 1, metatile: 1 }]);
 
       const assertions = tiles.map(async (tile) => {
         const metadata = await sharp(tile.buffer).metadata();
