@@ -57,7 +57,7 @@ flowchart TD
 - for `s3` type:
 ```json
 {
-    "type": "s3",
+    "kind": "s3",
     "endpoint": "s3-endpoint",
     "bucketName": "s3-bucket-name",
     "region": "s3-region",
@@ -72,7 +72,7 @@ flowchart TD
 - for `fs` type:
 ```json
 {
-    "type": "fs",
+    "kind": "fs",
     "basePath": "local tile storage destination path"
 }
 ```
