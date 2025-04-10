@@ -1,11 +1,11 @@
 import client from 'prom-client';
-import { type Logger } from '@map-colonies/js-logger';
-import { type IDetilerClient } from '@map-colonies/detiler-client';
 import { inject, injectable } from 'tsyringe';
 import { type AxiosInstance } from 'axios';
+import { type Logger } from '@map-colonies/js-logger';
+import { type IDetilerClient } from '@map-colonies/detiler-client';
 import { TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
-import { type IConfig } from '../common/interfaces';
-import { IProjectConfig } from '../common/interfaces';
+import { vectorRetilerV1Type } from '@map-colonies/schemas';
+import { type ConfigType } from '@src/common/config';
 import { fetchTimestampValue, timestampToUnix } from '../common/util';
 import {
   MAP_PROVIDER,
@@ -29,7 +29,7 @@ interface PreProcessReult {
 
 @injectable()
 export class TileProcessor {
-  private readonly project: IProjectConfig;
+  private readonly project: vectorRetilerV1Type['app']['project'];
   private readonly forceProcess: boolean;
   private readonly detilerProceedOnFailure: boolean;
 
@@ -43,14 +43,14 @@ export class TileProcessor {
     @inject(MAP_SPLITTER_PROVIDER) private readonly mapSplitter: MapSplitterProvider,
     @inject(TILES_STORAGE_PROVIDERS) private readonly tilesStorageProviders: TilesStorageProvider[],
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
-    @inject(SERVICES.CONFIG) private readonly config: IConfig,
+    @inject(SERVICES.CONFIG) private readonly config: ConfigType,
     @inject(SERVICES.DETILER) private readonly detiler?: IDetilerClient,
     @inject(METRICS_REGISTRY) registry?: client.Registry,
     @inject(METRICS_BUCKETS) metricsBuckets?: number[]
   ) {
-    this.project = this.config.get<IProjectConfig>('app.project');
-    this.forceProcess = this.config.get<boolean>('app.forceProcess');
-    this.detilerProceedOnFailure = this.config.get<boolean>('detiler.proceedOnFailure');
+    this.project = this.config.get('app.project');
+    this.forceProcess = this.config.get('app.forceProcess');
+    this.detilerProceedOnFailure = this.config.get('detiler.proceedOnFailure');
 
     if (registry !== undefined) {
       this.tilesDurationHistogram = new client.Histogram({

@@ -11,7 +11,7 @@ import { DependencyContainer } from 'tsyringe';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import { CONSUME_AND_PROCESS_FACTORY, DEFAULT_PORT, ExitCodes, METRICS_REGISTRY, ON_SIGNAL, SERVICES } from './common/constants';
 import { registerExternalValues } from './containerConfig';
-import { IConfig, IServerConfig } from './common/interfaces';
+import { ConfigType } from './common/config';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -19,7 +19,7 @@ void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
 
-    const config = container.resolve<IConfig>(SERVICES.CONFIG);
+    const config = container.resolve<ConfigType>(SERVICES.CONFIG);
     const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
     const registry = container.resolve<Registry>(METRICS_REGISTRY);
 
@@ -40,8 +40,8 @@ void registerExternalValues()
       },
     });
 
-    const serverConfig = config.get<IServerConfig>('server');
-    const port: number = parseInt(serverConfig.port) || DEFAULT_PORT;
+    const serverConfig = config.get('server');
+    const port = serverConfig.port || DEFAULT_PORT;
 
     server.listen(port, () => {
       const logger = container.resolve<Logger>(SERVICES.LOGGER);

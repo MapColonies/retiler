@@ -1,21 +1,7 @@
-import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { type vectorRetilerV1Type } from '@map-colonies/schemas';
 
-type StorageProviderKind = 's3' | 'fs';
+export type TileStoragLayout = vectorRetilerV1Type['app']['tilesStorage']['layout'];
 
-export interface TileStoragLayout {
-  format: string;
-  shouldFlipY: boolean;
-}
+export type StorageProviderConfig = vectorRetilerV1Type['app']['tilesStorage']['providers'][number];
 
-export type StorageProviderConfig = S3StorageProviderConfig | FsStorageProviderConfig;
-
-export interface S3StorageProviderConfig extends S3ClientConfig {
-  kind: StorageProviderKind;
-  endpoint: string;
-  bucketName: string;
-}
-
-export interface FsStorageProviderConfig {
-  kind: StorageProviderKind;
-  basePath: string;
-}
+export type FsStorageProviderConfig = Extract<StorageProviderConfig, { kind: 'fs' }>;
