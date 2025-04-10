@@ -64,7 +64,6 @@ describe('retiler', function () {
   let stateBuffer: Buffer;
   let mapBuffer2048x2048: Buffer;
   let mapBuffer512x512: Buffer;
-  let threeFourthsEmptyBuffer: Buffer;
   let determineKey: (tile: Required<Tile>) => string;
   let config: ConfigType;
 
@@ -85,7 +84,6 @@ describe('retiler', function () {
     stateBuffer = await fsPromises.readFile('tests/state.txt');
     mapBuffer512x512 = await fsPromises.readFile('tests/512x512.png');
     mapBuffer2048x2048 = await fsPromises.readFile('tests/2048x2048.png');
-    threeFourthsEmptyBuffer = await fsPromises.readFile('tests/threeFourthsEmpty.png');
   });
 
   afterEach(function () {
@@ -1296,12 +1294,12 @@ describe('retiler', function () {
       'should filter out blank tiles',
       async function () {
         detilerPutInterceptor.reply(httpStatusCodes.OK);
-        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, threeFourthsEmptyBuffer);
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
 
         const pgBoss = container.resolve(PgBoss);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
-        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 8, parent: 'parent' } });
 
         const consumePromise = container.resolve<ReturnType<typeof consumeAndProcessFactory>>(CONSUME_AND_PROCESS_FACTORY)();
 
@@ -1315,7 +1313,7 @@ describe('retiler', function () {
 
         expect(job).toHaveProperty('state', 'completed');
 
-        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
+        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(5));
 
         getMapScope.done();
         detilerScope.done();
