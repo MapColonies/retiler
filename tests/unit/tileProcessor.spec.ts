@@ -1,12 +1,12 @@
 import { readFile } from 'fs/promises';
 import { IDetilerClient } from '@map-colonies/detiler-client';
 import jsLogger from '@map-colonies/js-logger';
-import config from 'config';
 import { AxiosInstance } from 'axios';
 import client from 'prom-client';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from '../../src/retiler/interfaces';
 import { TileProcessor } from '../../src/retiler/tileProcessor';
 import { timestampToUnix } from '../../src/common/util';
+import { ConfigType, getConfig, initConfig } from '../../src/common/config';
 import { MILLISECONDS_IN_SECOND } from '../../src/common/constants';
 
 const REMOTE_STATE_TIMESTAMP = '2024-01-15T21:20:36Z';
@@ -20,6 +20,7 @@ describe('TileProcessor', () => {
   let anotherTilesStorageProv: TilesStorageProvider;
   let mockedClient: jest.Mocked<AxiosInstance>;
   let mockedDetiler: IDetilerClient;
+  let config: ConfigType;
 
   describe('#processTile', () => {
     const getMap = jest.fn();
@@ -29,21 +30,27 @@ describe('TileProcessor', () => {
     const getTileDetails = jest.fn();
     const setTileDetails = jest.fn();
     const queryCooldownsAsyncGenerator = jest.fn();
+    let configMock: ConfigType;
 
-    const configMock = {
-      get: jest.fn().mockImplementation((key: string) => {
-        switch (key) {
-          case 'app.project':
-            return {
-              name: 'testKit',
-              stateUrl: 'stateUrlTest',
-            };
-          default:
-            return config.get<unknown>(key);
-        }
-      }),
-      has: jest.fn(),
-    };
+    beforeAll(async () => {
+      await initConfig(true);
+      config = getConfig();
+
+      configMock = {
+        ...config,
+        get: jest.fn().mockImplementation((key: string) => {
+          switch (key) {
+            case 'app.project':
+              return {
+                name: 'testKit',
+                stateUrl: 'stateUrlTest',
+              };
+            default:
+              return config.get(key);
+          }
+        }),
+      };
+    });
 
     beforeEach(function () {
       mapProv = {
@@ -319,6 +326,7 @@ describe('TileProcessor', () => {
 
     it('should call all the processing functions in a row with the exception of detiler if application is force processing', async () => {
       const configMock = {
+        ...config,
         get: jest.fn().mockImplementation((key: string) => {
           switch (key) {
             case 'app.project':
@@ -330,7 +338,6 @@ describe('TileProcessor', () => {
               return true;
           }
         }),
-        has: jest.fn(),
       };
 
       const tileProcessorWithForce = new TileProcessor(
@@ -474,6 +481,7 @@ describe('TileProcessor', () => {
 
     it('should fail if setTileDetails fails and configured to not proceed on detiler failure', async () => {
       const configMock = {
+        ...config,
         get: jest.fn().mockImplementation((key: string) => {
           switch (key) {
             case 'app.project':
@@ -485,7 +493,6 @@ describe('TileProcessor', () => {
               return false;
           }
         }),
-        has: jest.fn(),
       };
 
       const tileProcessorWithNoProceeding = new TileProcessor(

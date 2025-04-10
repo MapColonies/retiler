@@ -3,7 +3,6 @@ import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
-import config from 'config';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
 import nock from 'nock';
@@ -27,6 +26,7 @@ import { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBos
 import { TilesStorageProvider } from '../../src/retiler/interfaces';
 import { getFlippedY } from '../../src/retiler/util';
 import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
+import { ConfigType, getConfig, initConfig } from '../../src/common/config';
 import { LONG_RUNNING_TEST, waitForJobToBeResolved } from './helpers';
 
 const s3SendMock = jest.fn();
@@ -66,11 +66,15 @@ describe('retiler', function () {
   let mapBuffer512x512: Buffer;
   let threeFourthsEmptyBuffer: Buffer;
   let determineKey: (tile: Required<Tile>) => string;
+  let config: ConfigType;
 
   beforeAll(async () => {
-    mapUrl = config.get<string>('app.map.url');
-    detilerUrl = config.get<string>('detiler.client.url');
-    stateUrl = config.get<string>('app.project.stateUrl');
+    await initConfig(true);
+    config = getConfig();
+
+    mapUrl = config.get('app.map.url');
+    detilerUrl = config.get('detiler.client.url')!;
+    stateUrl = config.get('app.project.stateUrl');
     // eslint-disable-next-line @typescript-eslint/naming-convention
     getMapInterceptor = nock(mapUrl).defaultReplyHeaders({ 'content-type': 'image/png' }).get(/.*/);
     stateInterceptor = nock(stateUrl).get(/.*/);
