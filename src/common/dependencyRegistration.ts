@@ -8,6 +8,7 @@ export interface InjectionObject<T> {
   provider: Providers<T>;
   options?: RegistrationOptions;
   postInjectionHook?: (container: DependencyContainer) => Promise<void>;
+  afterAllInjectionHook?: (container: DependencyContainer) => void | Promise<void>;
 }
 
 export const registerDependencies = async (
@@ -20,6 +21,10 @@ export const registerDependencies = async (
     const injectionObj = override?.find((overrideObj) => overrideObj.token === dep.token) ?? dep;
     container.register(injectionObj.token, injectionObj.provider as constructor<unknown>, injectionObj.options);
     await dep.postInjectionHook?.(container);
+  }
+
+  for (const dep of dependencies) {
+    await dep.afterAllInjectionHook?.(container);
   }
   return container;
 };
