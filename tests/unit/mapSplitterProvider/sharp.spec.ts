@@ -101,12 +101,18 @@ describe('SharpMapSplitter', () => {
 
     it('should split 512x512 image into only 1 tile as it have empty subtiles and SHOULD_FILTER_BLANK_TILES it true', async () => {
       const splitter = new SharpMapSplitter(jsLogger({ enabled: false }), true);
-      const buffer = await readFile('tests/threeFourthsEmpty.png');
+      const buffer = await readFile('tests/2048x2048.png');
 
-      const tiles = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 2, buffer });
+      const tiles = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 8, buffer });
 
-      expect(tiles).toHaveLength(1);
-      expect(tiles).toContainSameTiles([{ z: 1, x: 0, y: 1, metatile: 1 }]);
+      expect(tiles).toHaveLength(5);
+      expect(tiles).toContainSameTiles([
+        { z: 1, x: 2, y: 0, metatile: 1 },
+        { z: 1, x: 3, y: 0, metatile: 1 },
+        { z: 1, x: 1, y: 1, metatile: 1 },
+        { z: 1, x: 2, y: 1, metatile: 1 },
+        { z: 1, x: 3, y: 1, metatile: 1 },
+      ]);
 
       const assertions = tiles.map(async (tile) => {
         const metadata = await sharp(tile.buffer).metadata();
