@@ -16,19 +16,8 @@ export default async (): Promise<void> => {
       return Promise.resolve();
     }
 
-    const {
-      kind,
-      bucketName,
-      credentials: { accessKeyId, secretAccessKey },
-      ...clientConfig
-    } = provider;
-    const s3Client = new S3Client({
-      ...clientConfig,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
+    const { kind, bucketName, ...clientConfig } = provider;
+    const s3Client = new S3Client(structuredClone(clientConfig));
 
     try {
       await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));

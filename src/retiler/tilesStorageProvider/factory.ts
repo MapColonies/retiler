@@ -30,7 +30,7 @@ export const tilesStorageProvidersFactory: FactoryFunction<TilesStorageProvider[
       let s3Client = s3ClientsMap.get(clientConfig.endpoint);
 
       if (!s3Client) {
-        s3Client = new S3Client(clientConfig);
+        s3Client = new S3Client(structuredClone(clientConfig));
         s3ClientsMap.set(clientConfig.endpoint, s3Client);
 
         cleanupRegistry.register({
