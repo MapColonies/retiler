@@ -45,11 +45,11 @@
     },
     "map": {
       "provider": "wms",
-      "url": "https://vector-qgis-server-np.apps.j1lk3njp.eastus.aroapp.io/qgis-server?MAP=data/gush/gush.qgs",
+      "url": "https://some-domain.com/api/",
       "format": "image/png",
       "wms": {
         "version": "1.3.0",
-        "layers": "SUB_GUSH_ALL",
+        "layers": "",
         "isZoomLayers": false,
         "styles": ""
       },
