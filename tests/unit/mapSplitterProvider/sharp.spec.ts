@@ -99,7 +99,7 @@ describe('SharpMapSplitter', () => {
       await Promise.all(assertions);
     });
 
-    it('should split 512x512 image into only 1 tile as it have empty subtiles and SHOULD_FILTER_BLANK_TILES it true', async () => {
+    it('should split 2048x2048 image into only 1 tile as it have empty subtiles and SHOULD_FILTER_BLANK_TILES it true', async () => {
       const splitter = new SharpMapSplitter(jsLogger({ enabled: false }), true);
       const buffer = await readFile('tests/2048x2048.png');
 
