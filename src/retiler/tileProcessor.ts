@@ -4,7 +4,7 @@ import { type AxiosInstance } from 'axios';
 import { type Logger } from '@map-colonies/js-logger';
 import { type IDetilerClient } from '@map-colonies/detiler-client';
 import { TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
-import { vectorRetilerV1Type } from '@map-colonies/schemas';
+import { vectorRetilerFullV1Type } from '@map-colonies/schemas';
 import { type ConfigType } from '@src/common/config';
 import { fetchTimestampValue, timestampToUnix } from '../common/util';
 import {
@@ -29,7 +29,7 @@ interface PreProcessReult {
 
 @injectable()
 export class TileProcessor {
-  private readonly project: vectorRetilerV1Type['app']['project'];
+  private readonly project: vectorRetilerFullV1Type['app']['project'];
   private readonly forceProcess: boolean;
   private readonly detilerProceedOnFailure: boolean;
 

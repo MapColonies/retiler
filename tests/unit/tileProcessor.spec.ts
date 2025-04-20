@@ -32,8 +32,7 @@ describe('TileProcessor', () => {
     const queryCooldownsAsyncGenerator = jest.fn();
     let configMock: ConfigType;
 
-    beforeAll(async () => {
-      await initConfig(true);
+    beforeAll(() => {
       config = getConfig();
 
       configMock = {

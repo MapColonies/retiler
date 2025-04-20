@@ -45,7 +45,7 @@
     },
     "map": {
       "provider": "wms",
-      "url": "https://some-domain.com/api/",
+      "url": "https://some-domain.com:443/api/",
       "format": "image/png",
       "wms": {
         "version": "1.3.0",

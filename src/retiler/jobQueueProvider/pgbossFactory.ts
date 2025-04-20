@@ -1,10 +1,10 @@
 import { readFileSync } from 'fs';
 import PgBoss, { DatabaseOptions } from 'pg-boss';
-import { type vectorRetilerV1Type } from '@map-colonies/schemas';
+import { type vectorRetilerFullV1Type } from '@map-colonies/schemas';
 import { SERVICE_NAME } from '../../common/constants';
 
 const createDatabaseOptions = (dbConfig: PgBossConfig): DatabaseOptions => {
-  let ssl: Omit<vectorRetilerV1Type['app']['jobQueue']['pgBoss']['ssl'], 'enabled'> | undefined = undefined;
+  let ssl: Omit<vectorRetilerFullV1Type['app']['jobQueue']['pgBoss']['ssl'], 'enabled'> | undefined = undefined;
 
   const { ssl: inputSsl, ...databaseOptions } = dbConfig;
   if (inputSsl.enabled) {
@@ -18,7 +18,7 @@ const createDatabaseOptions = (dbConfig: PgBossConfig): DatabaseOptions => {
   };
 };
 
-export type PgBossConfig = vectorRetilerV1Type['app']['jobQueue']['pgBoss'];
+export type PgBossConfig = vectorRetilerFullV1Type['app']['jobQueue']['pgBoss'];
 
 export const pgBossFactory = (bossConfig: PgBossConfig): PgBoss => {
   const databaseOptions = createDatabaseOptions(bossConfig);

@@ -68,7 +68,6 @@ describe('retiler', function () {
   let config: ConfigType;
 
   beforeAll(async () => {
-    await initConfig(true);
     config = getConfig();
 
     mapUrl = config.get('app.map.url');
