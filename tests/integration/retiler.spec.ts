@@ -26,7 +26,7 @@ import { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBos
 import { TilesStorageProvider } from '../../src/retiler/interfaces';
 import { getFlippedY } from '../../src/retiler/util';
 import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
-import { LONG_RUNNING_TEST, waitForJobToBeResolved } from './helpers';
+import { createBlankBuffer, LONG_RUNNING_TEST, waitForJobToBeResolved } from './helpers';
 
 const s3SendMock = jest.fn();
 
@@ -1233,5 +1233,121 @@ describe('retiler', function () {
         LONG_RUNNING_TEST
       );
     });
+  });
+
+  describe('filtered blank tiles', function () {
+    let container: DependencyContainer;
+
+    beforeEach(async () => {
+      container = await registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.tilesStorage.shouldFilterBlankTiles':
+                      return true;
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
+        ],
+        useChild: true,
+      });
+
+      const storageLayout = container.resolve<TileStoragLayout>(TILES_STORAGE_LAYOUT);
+
+      determineKey = (tile: Required<Tile>): string => {
+        if (storageLayout.shouldFlipY) {
+          tile.y = getFlippedY(tile);
+        }
+        const key = Format(storageLayout.format, tile);
+        return key;
+      };
+    });
+
+    afterEach(async () => {
+      const pgBoss = container.resolve(PgBoss);
+      await pgBoss.clearStorage();
+    });
+
+    afterAll(async () => {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
+
+    it(
+      'should filter out fully blank tile',
+      async function () {
+        detilerPutInterceptor.reply(httpStatusCodes.OK);
+        const buffer = await createBlankBuffer();
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'completed');
+
+        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(0));
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should filter out blank subtiles',
+      async function () {
+        detilerPutInterceptor.reply(httpStatusCodes.OK);
+        const buffer = await fsPromises.readFile('tests/blank-but-top-right.png');
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'completed');
+
+        storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
   });
 });

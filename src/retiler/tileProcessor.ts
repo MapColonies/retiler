@@ -31,9 +31,11 @@ interface PreProcessReult {
 export class TileProcessor {
   private readonly project: IProjectConfig;
   private readonly forceProcess: boolean;
+  private readonly shouldFilterBlankTiles: boolean;
   private readonly detilerProceedOnFailure: boolean;
 
   private readonly tilesCounter?: client.Counter<'status' | 'z'>;
+  private readonly subTilesCounter?: client.Counter<'status' | 'z'>;
   private readonly preProcessResultsCounter?: client.Counter<'result' | 'z'>;
   private readonly tilesDurationHistogram?: client.Histogram<'z' | 'kind'>;
 
@@ -50,6 +52,7 @@ export class TileProcessor {
   ) {
     this.project = this.config.get<IProjectConfig>('app.project');
     this.forceProcess = this.config.get<boolean>('app.forceProcess');
+    this.shouldFilterBlankTiles = this.config.get<boolean>('app.tilesStorage.shouldFilterBlankTiles');
     this.detilerProceedOnFailure = this.config.get<boolean>('detiler.proceedOnFailure');
 
     if (registry !== undefined) {
@@ -72,6 +75,13 @@ export class TileProcessor {
         name: 'retiler_pre_process_results_count',
         help: 'The results of the pre process',
         labelNames: ['result', 'z'] as const,
+        registers: [registry],
+      });
+
+      this.subTilesCounter = new client.Counter({
+        name: 'retiler_sub_tiles_filtered_count',
+        help: 'The total number sub tiles filtered',
+        labelNames: ['status', 'z'] as const,
         registers: [registry],
       });
     }
@@ -97,16 +107,20 @@ export class TileProcessor {
       }
 
       const splitTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'split' });
-      const tiles = await this.mapSplitter.splitMap({ ...tile, buffer: mapBuffer });
+      const { splittedTiles, isMetatileBlank, blankCount, outOfBoundsCount } = await this.mapSplitter.splitMap(
+        { ...tile, buffer: mapBuffer },
+        this.shouldFilterBlankTiles
+      );
+
       if (splitTimerEnd) {
         splitTimerEnd();
       }
 
-      if (tiles.length > 0) {
-        this.logger.debug({ msg: 'storing tiles', count: tiles.length, providersCount: this.tilesStorageProviders.length });
+      if (splittedTiles.length > 0) {
+        this.logger.debug({ msg: 'storing tiles', count: splittedTiles.length, providersCount: this.tilesStorageProviders.length });
 
         const storeTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: 'store' });
-        await Promise.all(this.tilesStorageProviders.map(async (tilesStorageProv) => tilesStorageProv.storeTiles(tiles)));
+        await Promise.all(this.tilesStorageProviders.map(async (tilesStorageProv) => tilesStorageProv.storeTiles(splittedTiles)));
         if (storeTimerEnd) {
           storeTimerEnd();
         }
@@ -116,6 +130,14 @@ export class TileProcessor {
       await this.postProcess(tile, preRenderTimestamp);
 
       this.tilesCounter?.inc({ status: 'completed', z: tile.z });
+
+      if (isMetatileBlank) {
+        this.tilesCounter?.inc({ status: 'blank', z: tile.z });
+      }
+
+      this.subTilesCounter?.inc({ status: 'blank', z: tile.z }, blankCount);
+
+      this.subTilesCounter?.inc({ status: 'out_of_bounds', z: tile.z }, outOfBoundsCount);
     } catch (error) {
       this.tilesCounter?.inc({ status: 'failed', z: tile.z });
       throw error;

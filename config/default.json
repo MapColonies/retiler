@@ -6,7 +6,16 @@
     },
     "metrics": {
       "enabled": true,
-      "buckets": [0.1, 0.5, 1, 5, 15, 50, 250, 500]
+      "buckets": [
+        0.1,
+        0.5,
+        1,
+        5,
+        15,
+        50,
+        250,
+        500
+      ]
     }
   },
   "server": {
@@ -62,11 +71,12 @@
             "secretAccessKey": "secret"
           }
         }
-      ]
-    },
-    "layout": {
-      "format": "prefix/{z}/{x}/{y}.png",
-      "shouldFlipY": true
+      ],
+      "layout": {
+        "format": "prefix/{z}/{x}/{y}.png",
+        "shouldFlipY": true
+      },
+      "shouldFilterBlankTiles": false
     }
   },
   "detiler": {

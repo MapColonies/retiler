@@ -1,5 +1,6 @@
 import { setInterval as setIntervalPromise } from 'node:timers/promises';
 import PgBoss from 'pg-boss';
+import sharp from 'sharp';
 
 const WAIT_FOR_JOB_INTERVAL_MS = 10;
 
@@ -14,4 +15,17 @@ export async function waitForJobToBeResolved(boss: PgBoss, jobId: string): Promi
     }
   }
   return null;
+}
+
+export async function createBlankBuffer(params?: { width?: number; height?: number }): Promise<Buffer> {
+  return sharp({
+    create: {
+      width: params?.width ?? 1,
+      height: params?.height ?? 1,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .png()
+    .toBuffer();
 }

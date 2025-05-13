@@ -66,5 +66,6 @@ data:
   TILES_STORAGE_PROVIDERS: {{ .tilesStorage.providers | quote }}
   TILES_STORAGE_LAYOUT_FORMAT: {{ .tilesStorage.layout.format }}
   TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y: {{ .tilesStorage.layout.shouldFlipY | quote }}
+  TILES_STORAGE_SHOULD_FILTER_BLANK_TILES: {{ .tilesStorage.shouldFilterBlankTiles | quote }}
   {{- end }}
 {{- end }}

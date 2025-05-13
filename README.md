@@ -86,6 +86,8 @@ will result in the key: "prefix/3/10/4.png"
 
 `app.tilesStorage.layout.shouldFlipY`: determine if the key value of y (formatted by `app.tilesStorage.layout.format`) should be flipped over the y axis. e.g. if on the y axis there are overall 8 tiles with y values of 0 through 7 then 0 will be flipped to 7 and 7 to 0, 1 to 6 and 6 to 1 and so on. defaults to true
 
+`app.tilesStorage.shouldFilterBlankTiles`: determine if tiles or their sub-tiles will not be storaged on configured providers if found as blanked
+
 ## Run Locally
 
 Clone the project
