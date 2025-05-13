@@ -124,9 +124,7 @@ describe('SharpMapSplitter', () => {
         return tile;
       });
 
-      expect(tiles).toContainSameTiles([
-        { z: 1, x: 1, y: 0, metatile: 1 },
-      ]);
+      expect(tiles).toContainSameTiles([{ z: 1, x: 1, y: 0, metatile: 1 }]);
 
       const assertions = splitResult.splittedTiles.map(async (tile) => {
         const metadata = await sharp(tile.buffer).metadata();
@@ -179,7 +177,7 @@ describe('SharpMapSplitter', () => {
 
       const splitResult = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 2, buffer }, true);
 
-      expect(splitResult).toMatchObject({ isMetatileBlank: true, blankCount: 4, outOfBoundsCount: 0, splittedTiles: [] })
+      expect(splitResult).toMatchObject({ isMetatileBlank: true, blankCount: 4, outOfBoundsCount: 0, splittedTiles: [] });
     });
 
     it('should not filter out the whole tile for false filter blank flag', async function () {
