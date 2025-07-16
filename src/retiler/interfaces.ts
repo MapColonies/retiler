@@ -18,4 +18,5 @@ export interface MapSplitterProvider {
 export interface TilesStorageProvider {
   storeTile: (tile: TileWithBuffer) => Promise<void>;
   storeTiles: (tiles: TileWithBuffer[]) => Promise<void>;
+  deleteTiles:(tiles: TileWithMetadata[]) => Promise<void>;
 }

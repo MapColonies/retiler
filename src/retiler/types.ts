@@ -12,8 +12,8 @@ export type TileWithBuffer = TileWithMetadata & { buffer: Buffer };
 
 export interface MapSplitResult {
   splittedTiles: TileWithBuffer[];
+  blankTiles: TileWithMetadata[];
   outOfBoundsCount: number;
-  blankCount: number;
   isMetatileBlank: boolean;
 }
 
