@@ -28,6 +28,7 @@ describe('TileProcessor', () => {
     const splitMap = jest.fn();
     const storeTile = jest.fn();
     const storeTiles = jest.fn();
+    const deleteTiles = jest.fn();
     const getTileDetails = jest.fn();
     const setTileDetails = jest.fn();
     const queryCooldownsAsyncGenerator = jest.fn();
@@ -59,11 +60,13 @@ describe('TileProcessor', () => {
       tilesStorageProv = {
         storeTile,
         storeTiles,
+        deleteTiles
       };
 
       anotherTilesStorageProv = {
         storeTile,
         storeTiles,
+        deleteTiles
       };
 
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
@@ -121,7 +124,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -174,7 +177,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -263,7 +266,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -323,7 +326,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -383,7 +386,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -418,7 +421,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -455,7 +458,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -483,7 +486,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -510,7 +513,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -535,7 +538,7 @@ describe('TileProcessor', () => {
       getMap.mockResolvedValue(getMapResponse);
       const splitResultMock: MapSplitResult = {
         splittedTiles: [],
-        blankCount: 4,
+        blankTiles: [], // TODO: add 4 tiles
         outOfBoundsCount: 0,
         isMetatileBlank: true,
       };
@@ -588,7 +591,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -653,7 +656,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };
@@ -682,7 +685,7 @@ describe('TileProcessor', () => {
           { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
           { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
         ],
-        blankCount: 0,
+        blankTiles: [],
         outOfBoundsCount: 0,
         isMetatileBlank: false,
       };

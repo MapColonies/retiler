@@ -48,7 +48,7 @@ describe('SharpMapSplitter', () => {
       });
       await Promise.all(assertions);
 
-      expect(splitResult.blankCount).toBe(0);
+      expect(splitResult.blankTiles).toHaveLength(0);
       expect(splitResult.outOfBoundsCount).toBe(0);
       expect(splitResult.isMetatileBlank).toBe(false);
     });
@@ -84,7 +84,7 @@ describe('SharpMapSplitter', () => {
       });
       await Promise.all(assertions);
 
-      expect(splitResult.blankCount).toBe(0);
+      expect(splitResult.blankTiles).toHaveLength(0);
       expect(splitResult.outOfBoundsCount).toBe(metatileValue * metatileValue - metatileValue);
       expect(splitResult.isMetatileBlank).toBe(false);
     });
@@ -110,7 +110,7 @@ describe('SharpMapSplitter', () => {
       });
       await Promise.all(assertions);
 
-      expect(splitResult.blankCount).toBe(0);
+      expect(splitResult.blankTiles).toHaveLength(0);
       expect(splitResult.outOfBoundsCount).toBe(metatileValue * metatileValue - 2);
       expect(splitResult.isMetatileBlank).toBe(false);
     });
@@ -136,7 +136,12 @@ describe('SharpMapSplitter', () => {
       });
       await Promise.all(assertions);
 
-      expect(splitResult.blankCount).toBe(3);
+      expect(splitResult.blankTiles).toHaveLength(3);
+      expect(splitResult.blankTiles).toContainSameTiles([
+        { z: 1, x: 0, y: 1, metatile: 1 },
+        { z: 1, x: 0, y: 0, metatile: 1 },
+        { z: 1, x: 1, y: 1, metatile: 1 },
+      ]);
       expect(splitResult.outOfBoundsCount).toBe(0);
       expect(splitResult.isMetatileBlank).toBe(false);
     });
@@ -167,7 +172,7 @@ describe('SharpMapSplitter', () => {
       });
       await Promise.all(assertions);
 
-      expect(splitResult.blankCount).toBe(0);
+      expect(splitResult.blankTiles).toHaveLength(0);
       expect(splitResult.outOfBoundsCount).toBe(0);
       expect(splitResult.isMetatileBlank).toBe(false);
     });
@@ -177,7 +182,13 @@ describe('SharpMapSplitter', () => {
 
       const splitResult = await splitter.splitMap({ z: 1, x: 0, y: 0, metatile: 2, buffer }, true);
 
-      expect(splitResult).toMatchObject({ isMetatileBlank: true, blankCount: 4, outOfBoundsCount: 0, splittedTiles: [] });
+      expect(splitResult.blankTiles).toContainSameTiles([
+        { z: 1, x: 0, y: 0, metatile: 1 },
+        { z: 1, x: 1, y: 0, metatile: 1 },
+        { z: 1, x: 0, y: 1, metatile: 1 },
+        { z: 1, x: 1, y: 1, metatile: 1 },
+      ]);
+      expect(splitResult).toMatchObject({ isMetatileBlank: true, outOfBoundsCount: 0, splittedTiles: [] });
     });
 
     it('should not filter out the whole tile for false filter blank flag', async function () {
@@ -206,7 +217,7 @@ describe('SharpMapSplitter', () => {
       });
       await Promise.all(assertions);
 
-      expect(splitResult.blankCount).toBe(0);
+      expect(splitResult.blankTiles).toHaveLength(0);
       expect(splitResult.outOfBoundsCount).toBe(0);
       expect(splitResult.isMetatileBlank).toBe(false);
     });
