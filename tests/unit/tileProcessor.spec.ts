@@ -60,13 +60,13 @@ describe('TileProcessor', () => {
       tilesStorageProv = {
         storeTile,
         storeTiles,
-        deleteTiles
+        deleteTiles,
       };
 
       anotherTilesStorageProv = {
         storeTile,
         storeTiles,
-        deleteTiles
+        deleteTiles,
       };
 
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
@@ -533,12 +533,18 @@ describe('TileProcessor', () => {
 
     it('should not store any blank sub tiles for a blank tile and resolve without errors', async () => {
       const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      const blankTiles = [
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+        { z: 0, x: 0, y: 1, metatile: 1 },
+        { z: 0, x: 1, y: 1, metatile: 1 },
+      ];
       getTileDetails.mockResolvedValue(null);
       const getMapResponse = createBlankBuffer();
       getMap.mockResolvedValue(getMapResponse);
       const splitResultMock: MapSplitResult = {
         splittedTiles: [],
-        blankTiles: [], // TODO: add 4 tiles
+        blankTiles,
         outOfBoundsCount: 0,
         isMetatileBlank: true,
       };
@@ -551,7 +557,45 @@ describe('TileProcessor', () => {
       expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
       expect(mapProv.getMap).toHaveBeenCalled();
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
-      expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalledTimes(0);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledTimes(1);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledWith(blankTiles);
+    });
+
+    it('should store splitted tiles and delete blank tiles and resolve without errors', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      const splittedTiles = [
+        { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+      ];
+      const blankTiles = [
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+        { z: 0, x: 0, y: 1, metatile: 1 },
+        { z: 0, x: 1, y: 1, metatile: 1 },
+      ];
+      getTileDetails.mockResolvedValue(null);
+      const getMapResponse = createBlankBuffer();
+      getMap.mockResolvedValue(getMapResponse);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles,
+        blankTiles,
+        outOfBoundsCount: 0,
+        isMetatileBlank: true,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalledTimes(1);
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalledWith(splittedTiles);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledTimes(1);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledWith(blankTiles);
     });
 
     it('should fail if setTileDetails fails and configured to not proceed on detiler failure', async () => {

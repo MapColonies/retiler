@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */ // due to client-s3
 import { S3Client } from '@aws-sdk/client-s3';
 import jsLogger from '@map-colonies/js-logger';
 import { S3TilesStorage } from '../../../src/retiler/tilesStorageProvider/s3';
@@ -42,6 +43,7 @@ describe('S3TilesStorage', () => {
       });
 
       await expect(promise).resolves.not.toThrow();
+      expect(mockedS3Client.send.mock.calls).toHaveLength(1);
     });
 
     it('should throw an error if the request failed', async function () {
@@ -58,10 +60,21 @@ describe('S3TilesStorage', () => {
       });
 
       await expect(promise).rejects.toThrow(errorMessage);
+      expect(mockedS3Client.send.mock.calls).toHaveLength(1);
     });
   });
 
   describe('#storeTiles', () => {
+    it('should resolve without an error if payload is an empty array', async function () {
+      mockedS3Client.send.mockResolvedValue(undefined as never);
+
+      const promise = storage.storeTiles([]);
+
+      await expect(promise).resolves.not.toThrow();
+
+      expect(mockedS3Client.send.mock.calls).toHaveLength(0);
+    });
+
     it('should resolve without an error if client send resolved', async function () {
       mockedS3Client.send.mockResolvedValue(undefined as never);
 
@@ -74,6 +87,7 @@ describe('S3TilesStorage', () => {
       ]);
 
       await expect(promise).resolves.not.toThrow();
+      expect(mockedS3Client.send.mock.calls).toHaveLength(2);
     });
 
     it('should throw an error if one of the requests had failed', async function () {
@@ -90,6 +104,59 @@ describe('S3TilesStorage', () => {
       ]);
 
       await expect(promise).rejects.toThrow(errorMessage);
+      expect(mockedS3Client.send.mock.calls).toHaveLength(2);
+    });
+  });
+
+  describe('#deleteTiles', () => {
+    it('should resolve without an error if payload is an empty array', async function () {
+      mockedS3Client.send.mockResolvedValue(undefined as never);
+
+      const promise = storage.deleteTiles([]);
+
+      await expect(promise).resolves.not.toThrow();
+
+      expect(mockedS3Client.send.mock.calls).toHaveLength(0);
+    });
+
+    it('should resolve without an error if client send resolved', async function () {
+      mockedS3Client.send.mockResolvedValue({} as never);
+
+      const tile1 = { x: 1, y: 2, z: 3, metatile: 1 };
+      const tile2 = { x: 2, y: 2, z: 3, metatile: 1 };
+
+      const promise = storage.deleteTiles([tile1, tile2]);
+
+      await expect(promise).resolves.not.toThrow();
+      expect(mockedS3Client.send.mock.calls).toHaveLength(1);
+      expect(mockedS3Client.send.mock.calls[0][0]).toHaveProperty('input.Delete.Objects', [{ Key: 'test/3/1/5.png' }, { Key: 'test/3/2/5.png' }]);
+    });
+
+    it('should throw an error if one of the requests had failed', async function () {
+      const errorMessage = 'request failure error';
+      const error = new Error(errorMessage);
+      mockedS3Client.send.mockRejectedValueOnce(error as never);
+
+      const tile = { x: 1, y: 2, z: 3, metatile: 1 };
+
+      const promise = storage.deleteTiles([tile]);
+
+      await expect(promise).rejects.toThrow(errorMessage);
+      expect(mockedS3Client.send.mock.calls).toHaveLength(1);
+    });
+
+    it('should throw a proper error if one of the requests had failed with errors array', async function () {
+      const errorMessage = 'an error occurred during the delete of a batch of keys on bucket test-bucket';
+      const error1 = { Message: 'err1', Key: 'key1' };
+      const error2 = { Message: 'err2', Key: 'key2' };
+      mockedS3Client.send.mockResolvedValueOnce({ Errors: [error1, error2] } as never);
+
+      const tile = { x: 1, y: 2, z: 3, metatile: 1 };
+
+      const promise = storage.deleteTiles([tile]);
+
+      await expect(promise).rejects.toThrow(errorMessage);
+      expect(mockedS3Client.send.mock.calls).toHaveLength(1);
     });
   });
 });

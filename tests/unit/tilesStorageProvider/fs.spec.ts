@@ -155,10 +155,7 @@ describe('FsTilesStorage', () => {
       const tile1 = { x: 1, y: 2, z: 3, metatile: 1 };
       const tile2 = { x: 2, y: 2, z: 3, metatile: 1 };
 
-      const promise = storage.deleteTiles([
-        { ...tile1 },
-        { ...tile2 },
-      ]);
+      const promise = storage.deleteTiles([{ ...tile1 }, { ...tile2 }]);
 
       await expect(promise).resolves.not.toThrow();
       expect(fsPromises.unlink).toHaveBeenCalledTimes(2);
@@ -174,7 +171,7 @@ describe('FsTilesStorage', () => {
       const tile1 = { x: 1, y: 2, z: 3, metatile: 1 };
       const tile2 = { x: 1, y: 3, z: 3, metatile: 1 };
 
-      const promise = storage.deleteTiles([ tile1, tile2 ]);
+      const promise = storage.deleteTiles([tile1, tile2]);
 
       await expect(promise).rejects.toThrow(error);
       expect(fsPromises.unlink).toHaveBeenCalledTimes(2);
@@ -193,7 +190,7 @@ describe('FsTilesStorage', () => {
       const tile1 = { x: 1, y: 2, z: 3, metatile: 1 };
       const tile2 = { x: 1, y: 3, z: 3, metatile: 1 };
 
-      const promise = storage.deleteTiles([ tile1, tile2 ]);
+      const promise = storage.deleteTiles([tile1, tile2]);
 
       await expect(promise).resolves.not.toThrow();
       expect(fsPromises.unlink).toHaveBeenCalledTimes(2);

@@ -121,7 +121,7 @@ export class TileProcessor {
         this.logger.debug({ msg: 'deleting tiles', count: blankTiles.length, providersCount: this.tilesStorageProviders.length });
 
         const deleteTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: ProcessKind.DELETE });
-        await Promise.all(this.tilesStorageProviders.map(async (tilesStorageProv) => tilesStorageProv.deleteTiles(splittedTiles)));
+        await Promise.all(this.tilesStorageProviders.map(async (tilesStorageProv) => tilesStorageProv.deleteTiles(blankTiles)));
         endMetricTimer(deleteTimerEnd);
       }
 
