@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import * as fsPromises from 'fs/promises';
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
 import client from 'prom-client';
@@ -26,6 +27,7 @@ import { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBos
 import { TilesStorageProvider } from '../../src/retiler/interfaces';
 import { getFlippedY } from '../../src/retiler/util';
 import { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
+import { FS_FILE_NOT_FOUND_ERROR_CODE } from '../../src/retiler/tilesStorageProvider/constants';
 import { createBlankBuffer, LONG_RUNNING_TEST, waitForJobToBeResolved } from './helpers';
 
 const s3SendMock = jest.fn();
@@ -34,6 +36,7 @@ const s3SendMock = jest.fn();
 jest.mock('fs/promises', () => ({
   ...jest.requireActual('fs/promises'),
   writeFile: jest.fn(),
+  unlink: jest.fn(),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -1347,6 +1350,173 @@ describe('retiler', function () {
 
         storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
         deleteTilesSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should fail the job if tile storage provider deleteTiles had thrown an error',
+      async function () {
+        detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+        const buffer = await createBlankBuffer();
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const error = new Error('storing error');
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+        jest.spyOn(storageProviders[0], 'deleteTiles').mockRejectedValue(error);
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        expect(job).toHaveProperty('output.message', error.message);
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should fail the job if s3 tile storage provider deleteTiles had thrown an error',
+      async function () {
+        detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+        const buffer = await createBlankBuffer();
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+        const errorMessage = 'send error';
+        const error = new Error(errorMessage);
+        s3SendMock.mockRejectedValueOnce(error);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        const jobOutput = job?.output as object as { [index: string]: string };
+        expect(jobOutput['message']).toContain(error.message);
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should fail the job if s3 tile storage provider deleteTiles has responded with error response',
+      async function () {
+        detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+        const buffer = await createBlankBuffer();
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+        const error1 = { Message: 'err1', Key: 'key1' };
+        const error2 = { Message: 'err2', Key: 'key2' };
+        s3SendMock.mockResolvedValue({ Errors: [error1, error2] } as never);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        const jobOutput = job?.output as object as { [index: string]: string };
+        expect(jobOutput['message']).toContain('an error occurred during the delete of a batch of keys');
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should fail the job if fs unlink had thrown an error',
+      async function () {
+        detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+        const buffer = await createBlankBuffer();
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+        const errorMessage = 'send error';
+        const error = new Error(errorMessage);
+        s3SendMock.mockResolvedValue({});
+        (fsPromises.unlink as jest.Mock).mockRejectedValueOnce(error);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        const jobOutput = job?.output as object as { [index: string]: string };
+        expect(jobOutput['message']).toContain(error.message);
+
+        getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should delete blank tiles and not throw even if unlink throws not found error out blank subtiles',
+      async function () {
+        detilerPutInterceptor.reply(httpStatusCodes.OK);
+        const buffer = await createBlankBuffer();
+        const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
+        const errorMessage = 'request failure error';
+        const error = new Error(errorMessage);
+        const mockFsNotFoundError = error as NodeJS.ErrnoException;
+        mockFsNotFoundError.code = FS_FILE_NOT_FOUND_ERROR_CODE;
+        s3SendMock.mockResolvedValue({});
+        (fsPromises.unlink as jest.Mock).mockRejectedValue(mockFsNotFoundError);
+
+        const pgBoss = container.resolve(PgBoss);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, jobId as string);
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'completed');
 
         getMapScope.done();
         detilerScope.done();
