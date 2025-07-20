@@ -1302,7 +1302,7 @@ describe('retiler', function () {
 
         const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
         const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
-        const deleteTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'deleteTiles'));
+        const deleteTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'deleteTiles').mockResolvedValueOnce({} as never));
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
         await provider.stopQueue();
@@ -1336,7 +1336,7 @@ describe('retiler', function () {
 
         const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
         const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
-        const deleteTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'deleteTiles'));
+        const deleteTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'deleteTiles').mockResolvedValueOnce({} as never));
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
         await provider.stopQueue();
