@@ -1302,6 +1302,7 @@ describe('retiler', function () {
 
         const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
         const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+        const deleteTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'deleteTiles'));
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
         await provider.stopQueue();
@@ -1311,6 +1312,7 @@ describe('retiler', function () {
         expect(job).toHaveProperty('state', 'completed');
 
         storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(0));
+        deleteTilesSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
 
         getMapScope.done();
         detilerScope.done();
@@ -1334,6 +1336,7 @@ describe('retiler', function () {
 
         const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
         const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
+        const deleteTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'deleteTiles'));
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
         await provider.stopQueue();
@@ -1343,6 +1346,7 @@ describe('retiler', function () {
         expect(job).toHaveProperty('state', 'completed');
 
         storeTileSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
+        deleteTilesSpies.forEach((spy) => expect(spy.mock.calls).toHaveLength(1));
 
         getMapScope.done();
         detilerScope.done();
