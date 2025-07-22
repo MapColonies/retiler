@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Init nodejs
-        uses: ./.github/actions/init-npm
+        uses: MapColonies/shared-workflows/actions/init-npm@init-npm-v1.0.0
         with:
           node-version: ${{ matrix.node }}
 
@@ -117,7 +117,7 @@ jobs:
           PGPASSWORD: ${{ env.DB_PASSWORD }}
 
       - name: Init nodejs
-        uses: ./.github/actions/init-npm
+        uses: MapColonies/shared-workflows/actions/init-npm@init-npm-v1.0.0
         with:
           node-version: ${{ matrix.node }}
 
