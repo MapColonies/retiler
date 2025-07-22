@@ -20,6 +20,7 @@ ENV SERVER_PORT=8080
 WORKDIR /usr/src/app
 
 COPY --chown=node:node package*.json ./
+COPY .husky/ .husky/
 
 RUN npm ci --only=production
 
