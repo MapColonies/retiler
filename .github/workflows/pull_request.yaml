@@ -2,8 +2,7 @@ name: pull_request
 
 on: [pull_request, workflow_dispatch]
 env:
-  DB_HOST: localhost
-  DB_PORT: 5432
+  DB_HOST: postgres
   DB_NAME: postgres
   DB_USERNAME: postgres
   DB_PASSWORD: postgres
