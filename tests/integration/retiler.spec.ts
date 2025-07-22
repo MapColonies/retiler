@@ -35,7 +35,7 @@ const s3SendMock = jest.fn();
 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
 jest.mock('fs/promises', () => ({
   ...jest.requireActual('fs/promises'),
-  writeFile: jest.fn(),
+  // writeFile: jest.fn(),
   unlink: jest.fn(),
 }));
 
