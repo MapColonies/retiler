@@ -1,20 +1,21 @@
 /* eslint-disable @typescript-eslint/naming-convention */ // s3-client object commands arguments
 import { S3Client, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
-import config from 'config';
-import { S3StorageProviderConfig, StorageProviderConfig } from '../../../src/retiler/tilesStorageProvider/interfaces';
+import { getConfig, initConfig } from '../../../src/common/config';
 
 process.env.ALLOW_CONFIG_MUTATIONS = 'true'; // @aws-sdk/client-s3 attempts to modify config on tests
 
 export default async (): Promise<void> => {
-  const storageProvidersConfig = config.get<StorageProviderConfig[]>('app.tilesStorage.providers');
+  await initConfig(true);
+  const config = getConfig();
+  const storageProvidersConfig = config.get('app.tilesStorage.providers');
 
   const promises = storageProvidersConfig.map(async (provider) => {
     if (provider.kind !== 's3') {
       return Promise.resolve();
     }
 
-    const { kind, bucketName, ...clientConfig } = provider as S3StorageProviderConfig;
-    const s3Client = new S3Client(clientConfig);
+    const { kind, bucketName, ...clientConfig } = provider;
+    const s3Client = new S3Client({ ...clientConfig, credentials: { ...clientConfig.credentials } });
 
     try {
       await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));

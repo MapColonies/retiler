@@ -1,10 +1,10 @@
-import client from 'prom-client';
-import { Logger } from '@map-colonies/js-logger';
-import { IDetilerClient } from '@map-colonies/detiler-client';
+import { Registry, Counter, Histogram } from 'prom-client';
+import { type Logger } from '@map-colonies/js-logger';
+import { type IDetilerClient } from '@map-colonies/detiler-client';
 import { inject, injectable } from 'tsyringe';
-import { AxiosInstance } from 'axios';
+import { type AxiosInstance } from 'axios';
 import { TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
-import { IConfig } from '../common/interfaces';
+import { type ConfigType } from '@src/common/config';
 import { IProjectConfig } from '../common/interfaces';
 import { fetchTimestampValue, timestampToUnix } from '../common/util';
 import {
@@ -17,7 +17,7 @@ import {
   TILES_STORAGE_PROVIDERS,
 } from '../common/constants';
 import { endMetricTimer, MetatileStatus, ProcessKind, ProcessReason, ProcessSkipReason, SubTileStatus } from '../common/metrics';
-import { MapProvider, MapSplitterProvider, TilesStorageProvider } from './interfaces';
+import { type MapProvider, type MapSplitterProvider, type TilesStorageProvider } from './interfaces';
 import { TileWithMetadata } from './types';
 
 interface PreProcessReult {
@@ -32,10 +32,10 @@ export class TileProcessor {
   private readonly shouldFilterBlankTiles: boolean;
   private readonly detilerProceedOnFailure: boolean;
 
-  private readonly tilesCounter?: client.Counter<'status' | 'z'>;
-  private readonly subTilesCounter?: client.Counter<'status' | 'z'>;
-  private readonly preProcessResultsCounter?: client.Counter<'result' | 'z'>;
-  private readonly tilesDurationHistogram?: client.Histogram<'z' | 'kind'>;
+  private readonly tilesCounter?: Counter<'status' | 'z'>;
+  private readonly subTilesCounter?: Counter<'status' | 'z'>;
+  private readonly preProcessResultsCounter?: Counter<'result' | 'z'>;
+  private readonly tilesDurationHistogram?: Histogram<'z' | 'kind'>;
 
   public constructor(
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
@@ -43,18 +43,18 @@ export class TileProcessor {
     @inject(MAP_SPLITTER_PROVIDER) private readonly mapSplitter: MapSplitterProvider,
     @inject(TILES_STORAGE_PROVIDERS) private readonly tilesStorageProviders: TilesStorageProvider[],
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
-    @inject(SERVICES.CONFIG) private readonly config: IConfig,
+    @inject(SERVICES.CONFIG) private readonly config: ConfigType,
     @inject(SERVICES.DETILER) private readonly detiler?: IDetilerClient,
-    @inject(METRICS_REGISTRY) registry?: client.Registry,
+    @inject(METRICS_REGISTRY) registry?: Registry,
     @inject(METRICS_BUCKETS) metricsBuckets?: number[]
   ) {
-    this.project = this.config.get<IProjectConfig>('app.project');
-    this.forceProcess = this.config.get<boolean>('app.forceProcess');
-    this.shouldFilterBlankTiles = this.config.get<boolean>('app.tilesStorage.shouldFilterBlankTiles');
-    this.detilerProceedOnFailure = this.config.get<boolean>('detiler.proceedOnFailure');
+    this.project = this.config.get('app.project');
+    this.forceProcess = this.config.get('app.forceProcess');
+    this.shouldFilterBlankTiles = this.config.get('app.tilesStorage.shouldFilterBlankTiles');
+    this.detilerProceedOnFailure = this.config.get('detiler.proceedOnFailure');
 
     if (registry !== undefined) {
-      this.tilesDurationHistogram = new client.Histogram({
+      this.tilesDurationHistogram = new Histogram({
         name: 'retiler_action_duration_seconds',
         help: 'Retiler action duration by kind, one of fetch, slice or store.',
         buckets: metricsBuckets,
@@ -62,21 +62,21 @@ export class TileProcessor {
         registers: [registry],
       });
 
-      this.tilesCounter = new client.Counter({
+      this.tilesCounter = new Counter({
         name: 'retiler_tiles_count',
         help: 'The total number of tiles processed',
         labelNames: ['status', 'z'] as const,
         registers: [registry],
       });
 
-      this.preProcessResultsCounter = new client.Counter({
+      this.preProcessResultsCounter = new Counter({
         name: 'retiler_pre_process_results_count',
         help: 'The results of the pre process',
         labelNames: ['result', 'z'] as const,
         registers: [registry],
       });
 
-      this.subTilesCounter = new client.Counter({
+      this.subTilesCounter = new Counter({
         name: 'retiler_sub_tiles_count',
         help: 'The total number sub tiles processed or filtered',
         labelNames: ['status', 'z'] as const,

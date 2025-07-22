@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { inject, injectable } from 'tsyringe';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import { SERVICES, TILE_SIZE } from '../../common/constants';
 import { MapSplitterProvider } from '../interfaces';
@@ -105,6 +105,6 @@ export class SharpMapSplitter implements MapSplitterProvider {
       blankTilesCount: result.blankTiles.length,
     });
 
-    return { ...result, splittedTiles: tilesWithBuffers as TileWithBuffer[] };
+    return { ...result, splittedTiles: tilesWithBuffers };
   }
 }

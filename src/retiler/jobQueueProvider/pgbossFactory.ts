@@ -1,24 +1,25 @@
 import { readFileSync } from 'fs';
-import PgBoss, { ConstructorOptions, DatabaseOptions } from 'pg-boss';
+import pgBoss, { ConstructorOptions, DatabaseOptions } from 'pg-boss';
 import { SERVICE_NAME } from '../../common/constants';
 
 const createDatabaseOptions = (dbConfig: PgBossConfig): DatabaseOptions => {
-  const { enableSslAuth, sslPaths, ...databaseOptions } = dbConfig;
-  databaseOptions.application_name = SERVICE_NAME;
-  if (enableSslAuth) {
+  const { ssl, ...databaseOptions } = dbConfig;
+
+  let sslResult;
+  if (ssl.enabled) {
     databaseOptions.password = undefined;
-    databaseOptions.ssl = { key: readFileSync(sslPaths.key), cert: readFileSync(sslPaths.cert), ca: readFileSync(sslPaths.ca) };
+    sslResult = { key: readFileSync(ssl.key), cert: readFileSync(ssl.cert), ca: readFileSync(ssl.ca) };
   }
-  return databaseOptions;
+
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  return { ...databaseOptions, application_name: SERVICE_NAME, ssl: sslResult };
 };
 
-export type PgBossConfig = {
-  enableSslAuth: boolean;
-  sslPaths: { ca: string; cert: string; key: string };
-  certSecretName: string;
-} & ConstructorOptions;
+export type PgBossConfig = Omit<ConstructorOptions, 'ssl'> & {
+  ssl: { enabled: true; ca: string; cert: string; key: string } | { enabled: false };
+};
 
-export const pgBossFactory = (bossConfig: PgBossConfig): PgBoss => {
+export const pgBossFactory = (bossConfig: PgBossConfig): pgBoss => {
   const databaseOptions = createDatabaseOptions(bossConfig);
-  return new PgBoss({ ...bossConfig, ...databaseOptions, noScheduling: true });
+  return new pgBoss({ ...bossConfig, ...databaseOptions, noScheduling: true });
 };

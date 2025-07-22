@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */ // s3-client object commands arguments
 import { DeleteObjectsCommand, ObjectIdentifier, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { EndpointV2 } from '@smithy/types';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
 import { inject, injectable } from 'tsyringe';
@@ -10,7 +10,7 @@ import { timerify } from '../../common/util';
 import { TilesStorageProvider } from '../interfaces';
 import { TileWithBuffer, TileWithMetadata } from '../types';
 import { getFlippedY } from '../util';
-import { TileStoragLayout } from './interfaces';
+import { type TileStoragLayout } from './interfaces';
 import { S3_BATCH_DELETE_MAX_SIZE } from './constants';
 
 @injectable()
@@ -55,7 +55,7 @@ export class S3TilesStorage implements TilesStorageProvider {
       return;
     }
 
-    const parent = tiles[0].parent;
+    const parent = tiles[0]?.parent;
 
     if (this.endpoint === undefined) {
       const region = await this.s3Client.config.region();
@@ -81,7 +81,7 @@ export class S3TilesStorage implements TilesStorageProvider {
       return;
     }
 
-    const parent = tiles[0].parent;
+    const parent = tiles[0]?.parent;
 
     this.logger.info({
       msg: 'executing batch deletion of tiles from bucket',

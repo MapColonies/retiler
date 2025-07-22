@@ -1,6 +1,6 @@
 import { readFile } from 'fs/promises';
 import sharp from 'sharp';
-import faker from '@faker-js/faker';
+import { faker } from '@faker-js/faker';
 import jsLogger from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import { SharpMapSplitter } from '../../../src/retiler/mapSplitterProvider/sharp';
@@ -20,7 +20,7 @@ describe('SharpMapSplitter', () => {
 
     it('should split 2048x2048 image into 64 tiles on zoom levels larger or equal to 3', async function () {
       const metatileValue = 8;
-      const zoom = faker.datatype.number({ min: 3, max: 20 });
+      const zoom = faker.number.int({ min: 3, max: 20 });
       const buffer = await readFile('tests/2048x2048.png');
 
       const splitResult = await splitter.splitMap({ z: zoom, x: 0, y: 0, metatile: metatileValue, buffer });
@@ -90,7 +90,7 @@ describe('SharpMapSplitter', () => {
     });
 
     it('should split 256x256 image into only 2 tiles which are not out of bounds on zoom level 1, on every metatile value larger than 1', async function () {
-      const metatileValue = faker.datatype.number({ min: 2, max: 22 });
+      const metatileValue = faker.number.int({ min: 2, max: 22 });
       const buffer = await readFile('tests/512x512.png');
 
       const splitResult = await splitter.splitMap({ z: 0, x: 0, y: 0, metatile: metatileValue, buffer });

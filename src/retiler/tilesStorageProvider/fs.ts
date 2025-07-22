@@ -3,7 +3,7 @@ import { writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import { Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
-import Format from 'string-format';
+import format from 'string-format';
 import { timerify } from '../../common/util';
 import { TilesStorageProvider } from '../interfaces';
 import { TileWithBuffer, TileWithMetadata } from '../types';
@@ -12,7 +12,11 @@ import { TileStoragLayout } from './interfaces';
 import { FS_FILE_NOT_FOUND_ERROR_CODE } from './constants';
 
 export class FsTilesStorage implements TilesStorageProvider {
-  public constructor(private readonly logger: Logger, private readonly baseStoragePath: string, private readonly storageLayout: TileStoragLayout) {
+  public constructor(
+    private readonly logger: Logger,
+    private readonly baseStoragePath: string,
+    private readonly storageLayout: TileStoragLayout
+  ) {
     this.logger.info({ msg: 'initializing FS tile storage', baseStoragePath: this.baseStoragePath, storageLayout });
   }
 
@@ -48,7 +52,7 @@ export class FsTilesStorage implements TilesStorageProvider {
       return;
     }
 
-    const parent = tiles[0].parent;
+    const parent = tiles[0]?.parent;
 
     this.logger.debug({ msg: 'storing batch of tiles in fs', baseStoragePath: this.baseStoragePath, parent, count: tiles.length });
 
@@ -87,7 +91,7 @@ export class FsTilesStorage implements TilesStorageProvider {
       return;
     }
 
-    const parent = tiles[0].parent;
+    const parent = tiles[0]?.parent;
 
     this.logger.debug({ msg: 'deleting batch of tiles from fs', baseStoragePath: this.baseStoragePath, parent, count: tiles.length });
 
@@ -100,7 +104,7 @@ export class FsTilesStorage implements TilesStorageProvider {
     if (this.storageLayout.shouldFlipY) {
       tile.y = getFlippedY(tile);
     }
-    const key = Format(this.storageLayout.format, tile);
+    const key = format(this.storageLayout.format, tile);
     return key;
   }
 }

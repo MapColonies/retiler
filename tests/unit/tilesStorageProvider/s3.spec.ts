@@ -6,7 +6,7 @@ import { S3TilesStorage } from '../../../src/retiler/tilesStorageProvider/s3';
 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
 jest.mock('@aws-sdk/client-s3', () => ({
   ...jest.requireActual('@aws-sdk/client-s3'),
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   S3Client: jest.fn().mockImplementation(() => ({
     send: jest.fn(),
     config: {
@@ -129,7 +129,7 @@ describe('S3TilesStorage', () => {
 
       await expect(promise).resolves.not.toThrow();
       expect(mockedS3Client.send.mock.calls).toHaveLength(1);
-      expect(mockedS3Client.send.mock.calls[0][0]).toHaveProperty('input.Delete.Objects', [{ Key: 'test/3/1/5.png' }, { Key: 'test/3/2/5.png' }]);
+      expect(mockedS3Client.send.mock.calls[0]![0]).toHaveProperty('input.Delete.Objects', [{ Key: 'test/3/1/5.png' }, { Key: 'test/3/2/5.png' }]);
     });
 
     it('should throw an error if one of the requests had failed', async function () {

@@ -1,13 +1,11 @@
 import { DependencyContainer, Lifecycle, instancePerContainerCachingFactory } from 'tsyringe';
-import jsLogger, { Logger, LoggerOptions } from '@map-colonies/js-logger';
+import jsLogger, { Logger } from '@map-colonies/js-logger';
 import { getOtelMixin } from '@map-colonies/telemetry';
 import axios from 'axios';
-import client from 'prom-client';
+import { Registry } from 'prom-client';
 import { trace } from '@opentelemetry/api';
-import config from 'config';
-import PgBoss from 'pg-boss';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
-import { DetilerClient, DetilerClientConfig } from '@map-colonies/detiler-client';
+import { DetilerClient } from '@map-colonies/detiler-client';
 import {
   JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
@@ -18,7 +16,6 @@ import {
   SERVICE_NAME,
   TILES_STORAGE_PROVIDERS,
   TILES_STORAGE_LAYOUT,
-  LIVENESS_PROBE_FACTORY,
   CONSUME_AND_PROCESS_FACTORY,
   MAP_FORMAT,
   MAP_PROVIDER_CONFIG,
@@ -28,20 +25,16 @@ import {
   ON_SIGNAL,
 } from './common/constants';
 import { InjectionObject, registerDependencies } from './common/dependencyRegistration';
-import { tracing } from './common/tracing';
+import { getTracing } from './common/tracing';
 import { JobQueueProvider } from './retiler/interfaces';
 import { PgBossJobQueueProvider } from './retiler/jobQueueProvider/pgBossJobQueue';
-import { pgBossFactory, PgBossConfig } from './retiler/jobQueueProvider/pgbossFactory';
+import { pgBossFactory } from './retiler/jobQueueProvider/pgbossFactory';
 import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvider';
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
-import { TileStoragLayout } from './retiler/tilesStorageProvider/interfaces';
-import { livenessProbeFactory } from './common/liveness';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
-import { MapProviderType } from './retiler/types';
-import { WmsConfig } from './retiler/mapProvider/wms/requestParams';
-import { IConfig } from './common/interfaces';
 import { tilesStorageProvidersFactory } from './retiler/tilesStorageProvider/factory';
+import { ConfigType, getConfig } from './common/config';
 
 export interface RegisterOptions {
   override?: InjectionObject<unknown>[];
@@ -52,16 +45,14 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
   const cleanupRegistry = new CleanupRegistry();
 
   try {
-    const queueName = config.get<string>('app.queueName');
-    const queueTimeout = config.get<number>('app.jobQueue.waitTimeout');
-
     const dependencies: InjectionObject<unknown>[] = [
       {
         token: SERVICES.LOGGER,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const loggerConfig = config.get<LoggerOptions>('telemetry.logger');
+            const queueName = container.resolve<string>(QUEUE_NAME);
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const loggerConfig = config.get('telemetry.logger');
             const logger = jsLogger({ ...loggerConfig, mixin: getOtelMixin(), base: { queue: queueName } });
             const cleanupRegistryLogger = logger.child({ subComponent: 'cleanupRegistry' });
             cleanupRegistry.on('itemFailed', (id, error, msg) => cleanupRegistryLogger.error({ msg, itemId: id, err: error }));
@@ -73,13 +64,22 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
       {
         token: SERVICES.CLEANUP_REGISTRY,
         provider: { useValue: cleanupRegistry },
+        afterAllInjectionHook(container): void {
+          const logger = container.resolve<Logger>(SERVICES.LOGGER);
+          const cleanupRegistryLogger = logger.child({ subComponent: 'cleanupRegistry' });
+
+          cleanupRegistry.on('itemFailed', (id, error, msg) => cleanupRegistryLogger.error({ msg, itemId: id, err: error }));
+          cleanupRegistry.on('itemCompleted', (id) => cleanupRegistryLogger.info({ itemId: id, msg: 'cleanup finished for item' }));
+          cleanupRegistry.on('finished', (status) => cleanupRegistryLogger.info({ msg: `cleanup registry finished cleanup`, status }));
+        },
       },
-      { token: SERVICES.CONFIG, provider: { useValue: config } },
+      { token: SERVICES.CONFIG, provider: { useValue: getConfig() } },
       {
         token: SERVICES.TRACER,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
             const tracer = trace.getTracer(SERVICE_NAME);
+            const tracing = getTracing();
             const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
             cleanupRegistry.register({ func: tracing.stop.bind(tracing), id: SERVICES.TRACER });
             return tracer;
@@ -90,27 +90,46 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         token: METRICS_REGISTRY,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const metrics = config.get('telemetry.metrics') as { enabled?: boolean } | undefined;
 
-            if (config.get<boolean>('telemetry.metrics.enabled')) {
-              client.register.setDefaultLabels({ project: config.get<string>('app.project.name') });
-              return client.register;
+            if (metrics?.enabled === true) {
+              const metricsRegistry = new Registry();
+              metricsRegistry.setDefaultLabels({ project: config.get('app.project.name') });
+              config.initializeMetrics(metricsRegistry);
+              return metricsRegistry;
             }
           }),
         },
       },
       {
-        token: PgBoss,
+        token: SERVICES.PGBOSS,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const pgBossConfig = config.get<PgBossConfig>('app.jobQueue.pgBoss');
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const pgBossConfig = config.get('app.jobQueue.pgBoss');
             return pgBossFactory(pgBossConfig);
           }),
         },
       },
-      { token: QUEUE_NAME, provider: { useValue: queueName } },
-      { token: QUEUE_EMPTY_TIMEOUT, provider: { useValue: queueTimeout } },
+      {
+        token: QUEUE_NAME,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('app.queueName');
+          }),
+        },
+      },
+      {
+        token: QUEUE_EMPTY_TIMEOUT,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('app.jobQueue.waitTimeout');
+          }),
+        },
+      },
       {
         token: JOB_QUEUE_PROVIDER,
         provider: { useClass: PgBossJobQueueProvider },
@@ -121,29 +140,65 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           await provider.startQueue();
         },
       },
-      { token: METRICS_BUCKETS, provider: { useValue: config.get('telemetry.metrics.buckets') } },
-      { token: LIVENESS_PROBE_FACTORY, provider: { useFactory: livenessProbeFactory } },
+      {
+        token: METRICS_BUCKETS,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('telemetry.metrics.buckets');
+          }),
+        },
+      },
       {
         token: SERVICES.HTTP_CLIENT,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
 
-            const mapClientTimeout = config.get<number>('app.map.client.timeoutMs');
+            const mapClientTimeout = config.get('app.map.client.timeoutMs');
             return axios.create({ timeout: mapClientTimeout });
           }),
         },
       },
-      { token: MAP_URL, provider: { useValue: config.get<string>('app.map.url') } },
-      { token: MAP_FORMAT, provider: { useValue: config.get<string>('app.map.format') } },
-      { token: TILES_STORAGE_LAYOUT, provider: { useValue: config.get<TileStoragLayout>('app.tilesStorage.layout') } },
+      {
+        token: MAP_URL,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('app.map.url');
+          }),
+        },
+      },
+      {
+        token: MAP_FORMAT,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('app.map.format');
+          }),
+        },
+      },
+      {
+        token: TILES_STORAGE_LAYOUT,
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('app.tilesStorage.layout');
+          }),
+        },
+      },
       { token: MAP_SPLITTER_PROVIDER, provider: { useClass: SharpMapSplitter } },
       {
         token: MAP_PROVIDER_CONFIG,
-        provider: { useValue: config.get<WmsConfig>('app.map.wms') },
+        provider: {
+          useFactory: instancePerContainerCachingFactory((container) => {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            return config.get('app.map.wms');
+          }),
+        },
         postInjectionHook: async (container): Promise<void> => {
-          const config = container.resolve<IConfig>(SERVICES.CONFIG);
-          const mapProviderType = config.get<MapProviderType>('app.map.provider');
+          const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+          const mapProviderType = config.get('app.map.provider');
 
           if (mapProviderType === 'wms') {
             container.register(MAP_PROVIDER, { useClass: WmsMapProvider });
@@ -168,12 +223,11 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
         token: SERVICES.DETILER,
         provider: {
           useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<IConfig>(SERVICES.CONFIG);
-            const enableDetiler = config.get<boolean>('detiler.enabled');
-            if (enableDetiler) {
+            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+            const detilerConfig = config.get('detiler');
+            if (detilerConfig.enabled) {
               const logger = container.resolve<Logger>(SERVICES.LOGGER);
-              const clientConfig = config.get<DetilerClientConfig>('detiler.client');
-              const detiler = new DetilerClient({ ...clientConfig, logger: logger.child({ subComponent: 'detiler' }) });
+              const detiler = new DetilerClient({ ...detilerConfig.client, logger: logger.child({ subComponent: 'detiler' }) });
               return detiler;
             }
           }),

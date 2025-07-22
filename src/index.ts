@@ -1,25 +1,16 @@
-/* eslint-disable import/first */
 // this import must be called before the first import of tsyringe
 import 'reflect-metadata';
 import { createServer } from 'node:http';
 import express from 'express';
 import { Registry } from 'prom-client';
-import { metricsMiddleware } from '@map-colonies/telemetry';
 import { Logger } from '@map-colonies/js-logger';
 import { DependencyContainer } from 'tsyringe';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
-import {
-  CONSUME_AND_PROCESS_FACTORY,
-  DEFAULT_PORT,
-  ExitCodes,
-  LIVENESS_PROBE_FACTORY,
-  METRICS_REGISTRY,
-  ON_SIGNAL,
-  SERVICES,
-} from './common/constants';
+import { collectMetricsExpressMiddleware } from '@map-colonies/telemetry/prom-metrics';
+import { createTerminus } from '@godaddy/terminus';
+import { CONSUME_AND_PROCESS_FACTORY, ExitCodes, METRICS_REGISTRY, ON_SIGNAL, SERVICES, stubHealthcheck } from './common/constants';
 import { registerExternalValues } from './containerConfig';
-import { IConfig, IServerConfig } from './common/interfaces';
-import { LivenessFactory } from './common/liveness';
+import { ConfigType } from './common/config';
 
 let depContainer: DependencyContainer | undefined;
 
@@ -27,16 +18,15 @@ void registerExternalValues()
   .then(async (container) => {
     depContainer = container;
 
-    const config = container.resolve<IConfig>(SERVICES.CONFIG);
+    const config = container.resolve<ConfigType>(SERVICES.CONFIG);
     const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
-    const livenessFactory = container.resolve<LivenessFactory>(LIVENESS_PROBE_FACTORY);
     const registry = container.resolve<Registry>(METRICS_REGISTRY);
 
     const app = express();
 
-    app.use('/metrics', metricsMiddleware(registry));
+    app.use('/metrics', collectMetricsExpressMiddleware({ registry }));
 
-    const server = livenessFactory(createServer(app));
+    const server = createTerminus(createServer(app), { healthChecks: { '/liveness': stubHealthcheck }, onSignal: container.resolve(ON_SIGNAL) });
 
     cleanupRegistry.register({
       func: async () => {
@@ -47,8 +37,7 @@ void registerExternalValues()
       },
     });
 
-    const serverConfig = config.get<IServerConfig>('server');
-    const port: number = parseInt(serverConfig.port) || DEFAULT_PORT;
+    const port = config.get('server.port');
 
     server.listen(port, () => {
       const logger = container.resolve<Logger>(SERVICES.LOGGER);

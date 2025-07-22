@@ -1,26 +1,34 @@
 name: pull_request
 
-on: [pull_request]
+on: [pull_request, workflow_dispatch]
+env:
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_NAME: postgres
+  DB_USERNAME: postgres
+  DB_PASSWORD: postgres
+  DB_SCHEMA: public
 
 jobs:
   eslint:
     name: Run eslint
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node: [20.x, 22.x]
+
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
+      - name: Check out TS Project Git repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v1
+      - name: Init nodejs
+        uses: ./.github/actions/init-npm
         with:
-          node-version: 16
+          node-version: ${{ matrix.node }}
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run linters
-        uses: wearerequired/lint-action@v1
+      - name: Run TS Project linters
+        uses: wearerequired/lint-action@v2
         with:
           github_token: ${{ secrets.github_token }}
           # Enable linters
@@ -31,28 +39,31 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Run Snyk to check for vulnerabilities
-      uses: snyk/actions/node@master
-      continue-on-error: true
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - uses: actions/checkout@master
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
-    container: node:16-bullseye
+
+    strategy:
+      matrix:
+        node: [20.x, 22.x]
 
     services:
       # Label used to access the service container
       postgres:
         # Docker Hub image
-        image: postgres:13
+        image: postgres:14
         # Provide the password for postgres
         env:
-          POSTGRES_PASSWORD: 1234
-          POSTGRES_USER: postgres
-          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_USER: ${{ env.DB_USERNAME }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
         ports:
           - 5432:5432
         # Set health checks to wait until postgres has started
@@ -63,7 +74,7 @@ jobs:
           --health-retries 5
 
       minio1:
-        image: bitnami/minio:2022
+        image: minio/minio:edge-cicd
         env:
           MINIO_ROOT_USER: minioadmin1
           MINIO_ROOT_PASSWORD: minioadmin1
@@ -75,7 +86,7 @@ jobs:
           --health-retries 5
 
       minio2:
-        image: bitnami/minio:2022
+        image: minio/minio:edge-cicd
         env:
           MINIO_ROOT_USER: minioadmin2
           MINIO_ROOT_PASSWORD: minioadmin2
@@ -86,43 +97,37 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    strategy:
-      matrix:
-        node: [16.x, 18.x]
-
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
+      - name: Check out TS Project Git repository
+        uses: actions/checkout@v4
 
       - name: Install pg client
         run: |
-          apt-get update && apt-get install -y lsb-release curl ca-certificates
-          install -d /usr/share/postgresql-common/pgdg
-          curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bullseye-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          apt-get update
-          apt-get install -y postgresql-client
+          sudo apt-get update && sudo apt-get install -y lsb-release
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /usr/share/keyrings/postgresql-keyring.asc > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+        shell: bash
 
       - name: Create pgcrypto extension
-        run: psql -h postgres -d postgres -U postgres -c 'CREATE EXTENSION pgcrypto;'
+        run: psql -h $DB_HOST -d $DB_NAME -U $DB_USERNAME -c 'CREATE EXTENSION pgcrypto;'
         env:
-          PGPASSWORD: 1234
+          PGPASSWORD: ${{ env.DB_PASSWORD }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v1
+      - name: Init nodejs
+        uses: ./.github/actions/init-npm
         with:
           node-version: ${{ matrix.node }}
-
-      - name: Install Node.js dependencies
-        run: npm ci
 
       - name: Run tests
         run: npm run test
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Test Reporters
-          path: reports/**
+          name: Test Reporters ${{ matrix.node }}
+          path: ./reports/**
 
   build_image:
     name: Build Image
@@ -130,7 +135,7 @@ jobs:
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: build Docker image
         run: docker build -t test-build:latest .

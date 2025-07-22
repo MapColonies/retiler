@@ -1,6 +1,6 @@
-import { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AxiosError, type AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { tileToBoundingBox } from '@map-colonies/tile-calc';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
 import { MAP_FORMAT, MAP_URL, SERVICES, TILE_SIZE } from '../../../common/constants';
 import { MapProvider } from '../../interfaces';

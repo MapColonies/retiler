@@ -1,4 +1,5 @@
 {
+  "openapiConfig": {},
   "telemetry": {
     "logger": {
       "level": "info",
@@ -7,10 +8,14 @@
     "metrics": {
       "enabled": true,
       "buckets": [0.1, 0.5, 1, 5, 15, 50, 250, 500]
-    }
+    },
+    "tracing": {
+      "isEnabled": false
+    },
+    "shared": {}
   },
   "server": {
-    "port": "8080"
+    "port": 8080
   },
   "app": {
     "project": {
@@ -25,25 +30,28 @@
       "pgBoss": {
         "host": "localhost",
         "port": 5432,
-        "user": "postgres",
+        "username": "postgres",
         "password": "postgres",
         "schema": "pgboss",
-        "enableSslAuth": false,
-        "sslPaths": {
+        "ssl": {
+          "enabled": false,
           "ca": "",
           "key": "",
           "cert": ""
         },
-        "database": "pgboss",
+        "database": "postgres",
         "noSupervisor": true
       }
     },
     "map": {
       "provider": "arcgis",
       "url": "https://some-domain.com/api/",
-      "format": "png32",
+      "format": "image/png",
       "wms": {
-        "version": "1.3.0"
+        "version": "1.3.0",
+        "layers": "",
+        "isZoomLayers": false,
+        "styles": ""
       },
       "client": {
         "timeoutMs": 60000
@@ -53,7 +61,7 @@
       "providers": [
         {
           "kind": "s3",
-          "endpoint": "http://s3-domain/",
+          "endpoint": "http://s3-domain:9000",
           "bucketName": "bucket-name",
           "region": "region",
           "forcePathStyle": true,
@@ -71,6 +79,7 @@
     }
   },
   "detiler": {
-    "enabled": false
+    "enabled": false,
+    "proceedOnFailure": true
   }
 }

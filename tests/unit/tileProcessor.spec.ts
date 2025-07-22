@@ -1,9 +1,9 @@
 import { readFile } from 'fs/promises';
 import { IDetilerClient } from '@map-colonies/detiler-client';
 import jsLogger from '@map-colonies/js-logger';
-import config from 'config';
 import { AxiosInstance } from 'axios';
-import client from 'prom-client';
+import { Registry } from 'prom-client';
+import { ConfigType } from '../../src/common/config';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from '../../src/retiler/interfaces';
 import { TileProcessor } from '../../src/retiler/tileProcessor';
 import { timestampToUnix } from '../../src/common/util';
@@ -41,12 +41,14 @@ describe('TileProcessor', () => {
               name: 'testKit',
               stateUrl: 'stateUrlTest',
             };
+          case 'detiler.proceedOnFailure':
+            return true;
           default:
-            return config.get<unknown>(key);
+            return;
         }
       }),
       has: jest.fn(),
-    };
+    } as unknown as ConfigType;
 
     beforeEach(function () {
       mapProv = {
@@ -88,7 +90,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -100,7 +102,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
     });
@@ -253,7 +255,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         undefined,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -360,7 +362,7 @@ describe('TileProcessor', () => {
           }
         }),
         has: jest.fn(),
-      };
+      } as unknown as ConfigType;
 
       const tileProcessorWithForce = new TileProcessor(
         jsLogger({ enabled: false }),
@@ -370,7 +372,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -612,7 +614,7 @@ describe('TileProcessor', () => {
           }
         }),
         has: jest.fn(),
-      };
+      } as unknown as ConfigType;
 
       const tileProcessorWithNoProceeding = new TileProcessor(
         jsLogger({ enabled: false }),
@@ -622,7 +624,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
 

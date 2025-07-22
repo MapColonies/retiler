@@ -12,11 +12,10 @@ export const timerify = async <R, A extends unknown[]>(func: (...args: A) => Pro
 
 export const streamToString = async (stream: NodeJS.ReadStream): Promise<string> => {
   return new Promise((resolve, reject) => {
-    stream.setEncoding('utf8');
-    let data = '';
-    stream.on('data', (chunk) => (data += chunk));
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
     stream.on('error', reject);
-    stream.on('end', () => resolve(data));
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
   });
 };
 
@@ -27,6 +26,11 @@ export const fetchTimestampValue = (content: string): string => {
   }
 
   const value = matchResult[0].split('=')[1];
+
+  if (value === undefined) {
+    throw new Error('invalid timestamp format');
+  }
+
   return value.replace(/\\/g, '');
 };
 

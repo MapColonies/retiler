@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as fsPromises from 'fs/promises';
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import client from 'prom-client';
+import { Registry } from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
 import { trace } from '@opentelemetry/api';
-import config from 'config';
 import { DependencyContainer } from 'tsyringe';
 import PgBoss from 'pg-boss';
-import nock from 'nock';
+import nock, { Interceptor, Scope, removeInterceptor } from 'nock';
 import { Tile } from '@map-colonies/tile-calc';
-import Format from 'string-format';
+import format from 'string-format';
 import httpStatusCodes from 'http-status-codes';
 import { CleanupRegistry } from '@map-colonies/cleanup-registry';
+import { ConfigType, getConfig, initConfig } from '@src/common/config';
 import { registerExternalValues } from '../../src/containerConfig';
 import { consumeAndProcessFactory } from '../../src/app';
 import {
@@ -42,7 +42,7 @@ jest.mock('fs/promises', () => ({
 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
 jest.mock('@aws-sdk/client-s3', () => ({
   ...jest.requireActual('@aws-sdk/client-s3'),
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   S3Client: jest.fn().mockImplementation(() => ({
     send: s3SendMock,
     destroy: jest.fn(),
@@ -54,25 +54,28 @@ jest.mock('@aws-sdk/client-s3', () => ({
 }));
 
 describe('retiler', function () {
+  let config: ConfigType;
   let mapUrl: string;
   let stateUrl: string;
   let detilerUrl: string;
-  let getMapInterceptor: nock.Interceptor;
-  let stateInterceptor: nock.Interceptor;
-  let detilerScope: nock.Scope;
-  let detilerGetInterceptor: nock.Interceptor;
-  let cooldownsGetInterceptor: nock.Interceptor;
-  let detilerPutInterceptor: nock.Interceptor;
+  let getMapInterceptor: Interceptor;
+  let stateInterceptor: Interceptor;
+  let detilerScope: Scope;
+  let detilerGetInterceptor: Interceptor;
+  let cooldownsGetInterceptor: Interceptor;
+  let detilerPutInterceptor: Interceptor;
   let stateBuffer: Buffer;
   let mapBuffer2048x2048: Buffer;
   let mapBuffer512x512: Buffer;
   let determineKey: (tile: Required<Tile>) => string;
 
   beforeAll(async () => {
-    mapUrl = config.get<string>('app.map.url');
-    detilerUrl = config.get<string>('detiler.client.url');
-    stateUrl = config.get<string>('app.project.stateUrl');
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+    await initConfig(true);
+    config = getConfig();
+    mapUrl = config.get('app.map.url');
+    detilerUrl = config.get('detiler.client.url') as string;
+    stateUrl = config.get('app.project.stateUrl');
+
     getMapInterceptor = nock(mapUrl).defaultReplyHeaders({ 'content-type': 'image/png' }).get(/.*/);
     stateInterceptor = nock(stateUrl).get(/.*/);
     detilerScope = nock(detilerUrl);
@@ -85,11 +88,11 @@ describe('retiler', function () {
   });
 
   afterEach(function () {
-    nock.removeInterceptor(getMapInterceptor);
-    nock.removeInterceptor(stateInterceptor);
-    nock.removeInterceptor(detilerGetInterceptor);
-    nock.removeInterceptor(cooldownsGetInterceptor);
-    nock.removeInterceptor(detilerPutInterceptor);
+    removeInterceptor(getMapInterceptor);
+    removeInterceptor(stateInterceptor);
+    removeInterceptor(detilerGetInterceptor);
+    removeInterceptor(cooldownsGetInterceptor);
+    removeInterceptor(detilerPutInterceptor);
     jest.clearAllMocks();
   });
 
@@ -116,7 +119,7 @@ describe('retiler', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
           { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
         ],
         useChild: true,
@@ -128,13 +131,13 @@ describe('retiler', function () {
         if (storageLayout.shouldFlipY) {
           tile.y = getFlippedY(tile);
         }
-        const key = Format(storageLayout.format, tile);
+        const key = format(storageLayout.format, tile);
         return key;
       };
     });
 
     afterEach(async () => {
-      const pgBoss = container.resolve(PgBoss);
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
       await pgBoss.clearStorage();
     });
 
@@ -152,7 +155,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -173,7 +176,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -193,7 +196,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent', state: 666 } });
@@ -215,7 +218,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -235,7 +238,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -268,7 +271,7 @@ describe('retiler', function () {
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -289,7 +292,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -312,7 +315,7 @@ describe('retiler', function () {
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -333,7 +336,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -355,7 +358,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const stateScope = stateInterceptor.reply(httpStatusCodes.OK, stateBuffer);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -386,7 +389,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent', force: true } });
@@ -408,7 +411,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -434,7 +437,7 @@ describe('retiler', function () {
           getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
           getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
@@ -479,7 +482,7 @@ describe('retiler', function () {
           getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
           getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent', force: true } };
@@ -525,7 +528,7 @@ describe('retiler', function () {
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
           getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const request1 = { name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } };
@@ -564,7 +567,7 @@ describe('retiler', function () {
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -593,7 +596,7 @@ describe('retiler', function () {
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -622,7 +625,7 @@ describe('retiler', function () {
           const detilerSetScope = nock(detilerUrl).put(/.*/).replyWithError({ message: 'detiler set error' });
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -650,7 +653,7 @@ describe('retiler', function () {
         'should fail the job if the tile is out of bounds',
         async function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 10, y: 10, metatile: 8, parent: 'parent' } });
@@ -677,7 +680,7 @@ describe('retiler', function () {
           const mapUrl = container.resolve<string>(MAP_URL);
           const getMapScope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -705,7 +708,7 @@ describe('retiler', function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.SERVICE_UNAVAILABLE);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -733,7 +736,7 @@ describe('retiler', function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -743,7 +746,7 @@ describe('retiler', function () {
           const consumePromise = consumeAndProcessFactory(container)();
 
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
-          jest.spyOn(storageProviders[0], 'storeTile').mockRejectedValue(error);
+          jest.spyOn(storageProviders[0]!, 'storeTile').mockRejectedValue(error);
 
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -769,7 +772,7 @@ describe('retiler', function () {
           const error = new Error(errorMessage);
           s3SendMock.mockRejectedValueOnce(error);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -801,7 +804,7 @@ describe('retiler', function () {
           const error = new Error(errorMessage);
           (fsPromises.writeFile as jest.Mock).mockRejectedValueOnce(error);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -827,7 +830,7 @@ describe('retiler', function () {
 
     describe('Sad Path', function () {
       it('should throw an error if pgboss rejects fetching', async function () {
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
 
         const fetchError = new Error('fetch error');
         jest.spyOn(pgBoss, 'fetch').mockRejectedValue(fetchError);
@@ -863,7 +866,7 @@ describe('retiler', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
           { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
         ],
         useChild: true,
@@ -875,13 +878,13 @@ describe('retiler', function () {
         if (storageLayout.shouldFlipY) {
           tile.y = getFlippedY(tile);
         }
-        const key = Format(storageLayout.format, tile);
+        const key = format(storageLayout.format, tile);
         return key;
       };
     });
 
     afterEach(async () => {
-      const pgBoss = container.resolve(PgBoss);
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
       await pgBoss.clearStorage();
     });
 
@@ -899,7 +902,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -921,7 +924,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -942,7 +945,7 @@ describe('retiler', function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           const getMapScope = nock(mapUrl).get(/.*/).replyWithError({ message: 'fetching map error' });
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -968,10 +971,10 @@ describe('retiler', function () {
         'should fail the job if map fetching service returns an ok with xml content type',
         async function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          const getMapScope = getMapInterceptor.reply(200, '<xml></xml>', { 'content-type': 'text/xml' });
 
-          const pgBoss = container.resolve(PgBoss);
+          const getMapScope = getMapInterceptor.reply(200, '<xml></xml>', { 'Content-Type': 'text/xml' });
+
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -1018,7 +1021,7 @@ describe('retiler', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
           { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
         ],
         useChild: true,
@@ -1030,13 +1033,13 @@ describe('retiler', function () {
         if (storageLayout.shouldFlipY) {
           tile.y = getFlippedY(tile);
         }
-        const key = Format(storageLayout.format, tile);
+        const key = format(storageLayout.format, tile);
         return key;
       };
     });
 
     afterEach(async () => {
-      const pgBoss = container.resolve(PgBoss);
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
       await pgBoss.clearStorage();
     });
 
@@ -1052,7 +1055,7 @@ describe('retiler', function () {
         async function () {
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -1073,7 +1076,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -1088,7 +1091,7 @@ describe('retiler', function () {
       it('should complete running jobs', async function () {
         const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer2048x2048).persist();
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const request1 = { name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } };
@@ -1136,7 +1139,7 @@ describe('retiler', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
           { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
         ],
         useChild: true,
@@ -1148,13 +1151,13 @@ describe('retiler', function () {
         if (storageLayout.shouldFlipY) {
           tile.y = getFlippedY(tile);
         }
-        const key = Format(storageLayout.format, tile);
+        const key = format(storageLayout.format, tile);
         return key;
       };
     });
 
     afterEach(async () => {
-      const pgBoss = container.resolve(PgBoss);
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
       await pgBoss.clearStorage();
     });
 
@@ -1171,7 +1174,7 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -1192,7 +1195,7 @@ describe('retiler', function () {
 
           for (const storeTileSpy of storeTileSpies) {
             for (let i = 0; i < 4; i++) {
-              const storeCall = storeTileSpy.mock.calls[i][0];
+              const storeCall = storeTileSpy.mock.calls[i]![0];
               const key = determineKey({ x: storeCall.x, y: storeCall.y, z: storeCall.z, metatile: storeCall.metatile });
               const expectedBuffer = await fsPromises.readFile(`tests/integration/expected/${key}`);
               expect(expectedBuffer.compare(storeCall.buffer)).toBe(0);
@@ -1213,7 +1216,7 @@ describe('retiler', function () {
           const detilerSetScope = nock(detilerUrl).put(/.*/).replyWithError({ message: 'detiler set error' });
           const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, mapBuffer512x512);
 
-          const pgBoss = container.resolve(PgBoss);
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
           const queueName = container.resolve<string>(QUEUE_NAME);
           const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -1261,7 +1264,7 @@ describe('retiler', function () {
           },
           { token: SERVICES.LOGGER, provider: { useValue: jsLogger({ enabled: false }) } },
           { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
-          { token: METRICS_REGISTRY, provider: { useValue: new client.Registry() } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
           { token: TILES_STORAGE_LAYOUT, provider: { useValue: { format: '{z}/{x}/{y}.png', shouldFlipY: true } } },
         ],
         useChild: true,
@@ -1273,13 +1276,13 @@ describe('retiler', function () {
         if (storageLayout.shouldFlipY) {
           tile.y = getFlippedY(tile);
         }
-        const key = Format(storageLayout.format, tile);
+        const key = format(storageLayout.format, tile);
         return key;
       };
     });
 
     afterEach(async () => {
-      const pgBoss = container.resolve(PgBoss);
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
       await pgBoss.clearStorage();
     });
 
@@ -1296,7 +1299,7 @@ describe('retiler', function () {
         const buffer = await createBlankBuffer();
         const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -1330,7 +1333,7 @@ describe('retiler', function () {
         const buffer = await fsPromises.readFile('tests/blank-but-top-right.png');
         const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
@@ -1364,7 +1367,7 @@ describe('retiler', function () {
         const buffer = await createBlankBuffer();
         const getMapScope = getMapInterceptor.reply(httpStatusCodes.OK, buffer);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -1374,7 +1377,7 @@ describe('retiler', function () {
         const consumePromise = consumeAndProcessFactory(container)();
 
         const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
-        jest.spyOn(storageProviders[0], 'deleteTiles').mockRejectedValue(error);
+        jest.spyOn(storageProviders[0]!, 'deleteTiles').mockRejectedValue(error);
 
         const job = await waitForJobToBeResolved(pgBoss, jobId as string);
 
@@ -1401,7 +1404,7 @@ describe('retiler', function () {
         const error = new Error(errorMessage);
         s3SendMock.mockRejectedValueOnce(error);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -1434,7 +1437,7 @@ describe('retiler', function () {
         const error2 = { Message: 'err2', Key: 'key2' };
         s3SendMock.mockResolvedValue({ Errors: [error1, error2] } as never);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -1468,7 +1471,7 @@ describe('retiler', function () {
         s3SendMock.mockResolvedValue({});
         (fsPromises.unlink as jest.Mock).mockRejectedValueOnce(error);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
@@ -1504,7 +1507,7 @@ describe('retiler', function () {
         s3SendMock.mockResolvedValue({});
         (fsPromises.unlink as jest.Mock).mockRejectedValue(mockFsNotFoundError);
 
-        const pgBoss = container.resolve(PgBoss);
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
         const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
         const queueName = container.resolve<string>(QUEUE_NAME);
         const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });

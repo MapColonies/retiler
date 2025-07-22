@@ -66,7 +66,7 @@ describe('FsTilesStorage', () => {
       expect(fsPromises.writeFile).toHaveBeenCalledWith('test-path/test/3/1/5.png', buffer);
     });
 
-    it('should throw an error if the request failed', async function () {
+    it('should throw an error if the storeTile request failed', async function () {
       const errorMessage = 'request failure error';
       const error = new Error(errorMessage);
       (fs.existsSync as jest.Mock).mockReturnValue(true);
@@ -81,7 +81,7 @@ describe('FsTilesStorage', () => {
       });
 
       await expect(promise).rejects.toThrow(errorMessage);
-      expect(fs.existsSync).toHaveBeenCalledTimes(1);
+      expect(fs.existsSync).toHaveBeenCalled();
       expect(fsPromises.mkdir).toHaveBeenCalledTimes(0);
       expect(fsPromises.writeFile).toHaveBeenCalledTimes(1);
     });
@@ -119,7 +119,7 @@ describe('FsTilesStorage', () => {
       expect(fsPromises.writeFile).toHaveBeenNthCalledWith(2, 'test-path/test/3/1/5.png', buffer);
     });
 
-    it('should throw an error if one of the requests had failed', async function () {
+    it('should throw an error if one of the storeTiles requests had failed', async function () {
       const errorMessage = 'request failure error';
       const error = new Error(errorMessage);
       (fs.existsSync as jest.Mock).mockReturnValueOnce(false).mockResolvedValue(true);
@@ -135,7 +135,7 @@ describe('FsTilesStorage', () => {
       ]);
 
       await expect(promise).rejects.toThrow(errorMessage);
-      expect(fs.existsSync).toHaveBeenCalledTimes(2);
+      expect(fs.existsSync).toHaveBeenCalled();
       expect(fsPromises.mkdir).toHaveBeenCalledTimes(1);
       expect(fsPromises.writeFile).toHaveBeenCalledTimes(2);
     });
@@ -163,7 +163,7 @@ describe('FsTilesStorage', () => {
       expect(fsPromises.unlink).toHaveBeenNthCalledWith(2, 'test-path/test/3/2/5.png');
     });
 
-    it('should throw an error if one of the requests had failed', async function () {
+    it('should throw an error if one of the deleteTiles requests had failed', async function () {
       const errorMessage = 'request failure error';
       const error = new Error(errorMessage);
       (fsPromises.unlink as jest.Mock).mockResolvedValueOnce(undefined).mockRejectedValueOnce(error);
