@@ -74,11 +74,13 @@ jobs:
           --health-retries 5
 
       minio1:
-        image: minio/minio:latest-cicd
+        image: bitnami/minio:2025
         env:
           MINIO_ROOT_USER: minioadmin1
           MINIO_ROOT_PASSWORD: minioadmin1
           MINIO_API_PORT_NUMBER: '9003'
+        ports:
+          - 9003:9000
         options: >-
           --health-cmd "curl -f http://localhost:9003/minio/health/live"
           --health-interval 10s
@@ -86,11 +88,13 @@ jobs:
           --health-retries 5
 
       minio2:
-        image: minio/minio:latest-cicd
+        image: bitnami/minio:2025
         env:
           MINIO_ROOT_USER: minioadmin2
           MINIO_ROOT_PASSWORD: minioadmin2
           MINIO_API_PORT_NUMBER: '9004'
+        ports:
+          - 9004:9000
         options: >-
           --health-cmd "curl -f http://localhost:9004/minio/health/live"
           --health-interval 10s
