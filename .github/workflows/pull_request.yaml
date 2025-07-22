@@ -79,7 +79,7 @@ jobs:
           MINIO_ROOT_USER: minioadmin1
           MINIO_ROOT_PASSWORD: minioadmin1
         ports:
-          - 9000:9000
+          - 9001:9000
         options: >-
           --health-cmd "curl -f http://localhost:9000/minio/health/live"
           --health-interval 10s
