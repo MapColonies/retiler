@@ -160,7 +160,6 @@ export class TileProcessor {
 
       // attempt to get latest tile details
       const tileDetails = await this.detiler.getTileDetails({ kit: this.project.name, z: tile.z, x: tile.x, y: tile.y });
-
       if (tileDetails !== null) {
         // get the project last update time
         const projectState = await this.axiosClient.get<Buffer>(this.project.stateUrl, { responseType: 'arraybuffer' });
