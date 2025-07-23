@@ -7,9 +7,34 @@ global:
 enabled: true
 environment: development
 replicaCount: 1
+revisionHistoryLimit: 5
 initialDelaySeconds: 60
 nodePort: 30030 #for minikube deployment only
 resetOnConfigChange: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+configManagement:
+  offlineMode: false
+  name: 'service-name'
+  version: 'latest'
+  serverUrl: 'http://localhost:8080/api'
+
+podAnnotations: {}
+
+extraVolumes: []
+
+extraVolumeMounts: []
+
+extraEnvVars: []
+
+command: []
+args: []
+# command: [ "/bin/sh", "-c", "--" ]
+# args: [ "while true; do sleep infinity; done;" ]
+
+sidecars: []
 
 cloudProvider:
   dockerRegistryUrl: my-registry-url.io
@@ -22,7 +47,9 @@ caKey: 'ca.crt'
 
 image:
   repository: retiler
-  tag: 'latest'
+  # If commented, appVersion will be taken. See: _helpers.tpl
+  # tag: 'latest'
+  pullPolicy: IfNotPresent
 
 dbConfig:
   host: localhost
@@ -39,6 +66,7 @@ dbConfig:
 
 env:
   logLevel: info
+  logPrettyPrintEnabled: false
   project:
     name: default
     stateUrl: stateUrl

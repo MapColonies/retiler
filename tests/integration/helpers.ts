@@ -4,7 +4,7 @@ import sharp from 'sharp';
 
 const WAIT_FOR_JOB_INTERVAL_MS = 10;
 
-export const LONG_RUNNING_TEST = 30000;
+export const LONG_RUNNING_TEST = 10000;
 
 export async function waitForJobToBeResolved(boss: pgBoss, jobId: string): Promise<pgBoss.JobWithMetadata | null> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
