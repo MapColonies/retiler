@@ -108,7 +108,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           useFactory: instancePerContainerCachingFactory((container) => {
             const config = container.resolve<ConfigType>(SERVICES.CONFIG);
             const pgBossConfig = config.get('app.jobQueue.pgBoss');
-            return pgBossFactory(pgBossConfig);
+            const projectName = config.get('app.project.name');
+            return pgBossFactory({ ...pgBossConfig, projectName });
           }),
         },
       },
