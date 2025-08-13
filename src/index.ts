@@ -24,7 +24,15 @@ void registerExternalValues()
 
     const app = express();
 
-    app.use('/metrics', collectMetricsExpressMiddleware({ registry }));
+    app.use(
+      '/metrics',
+      collectMetricsExpressMiddleware({
+        registry,
+        labels: {
+          project: config.get('app.project.name'),
+        },
+      })
+    );
 
     const server = createTerminus(createServer(app), { healthChecks: { '/liveness': stubHealthcheck }, onSignal: container.resolve(ON_SIGNAL) });
 

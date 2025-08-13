@@ -95,7 +95,6 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
 
             if (metrics?.enabled === true) {
               const metricsRegistry = new Registry();
-              metricsRegistry.setDefaultLabels({ project: config.get('app.project.name') });
               config.initializeMetrics(metricsRegistry);
               return metricsRegistry;
             }
