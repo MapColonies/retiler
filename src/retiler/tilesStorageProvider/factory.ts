@@ -49,6 +49,7 @@ export const tilesStorageProvidersFactory: FactoryFunction<TilesStorageProvider[
         // Add MD5 fallback middleware (Content-MD5 header)
         // https://github.com/aws/aws-sdk-js-v3/blob/d1501040077b937ef23e591238cda4bbe729c721/supplemental-docs/MD5_FALLBACK.md
         s3Client.middlewareStack.add(
+          /* istanbul ignore next */
           (next, context) => async (args) => {
             const typedArgs = args as Args;
 

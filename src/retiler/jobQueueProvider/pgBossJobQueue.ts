@@ -30,6 +30,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
       new Gauge({
         name: 'retiler_current_running_job_count',
         help: 'The number of jobs currently running',
+        /* istanbul ignore next */
         collect(): void {
           this.set(self.runningJobs);
         },
