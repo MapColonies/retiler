@@ -1187,6 +1187,8 @@ describe('retiler', function () {
           const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
           const storeTileSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTile'));
 
+          expect(provider.activeQueueName).toBe(queueName);
+
           const job = await waitForJobToBeResolved(pgBoss, jobId as string);
           await provider.stopQueue();
 
