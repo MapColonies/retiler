@@ -50,7 +50,6 @@
       "wms": {
         "version": "1.3.0",
         "layers": "",
-        "isZoomLayers": false,
         "styles": ""
       },
       "client": {
