@@ -1,9 +1,3 @@
-export interface IConfig {
-  get: <T>(setting: string) => T;
-  has: (setting: string) => boolean;
-}
+import { vectorRetilerV1Type } from '@map-colonies/schemas';
 
-export interface IProjectConfig {
-  name: string;
-  stateUrl: string;
-}
+export type IProjectConfig = vectorRetilerV1Type['app']['project'];
