@@ -25,7 +25,10 @@ const createDatabaseOptions = (dbConfig: PgBossConfig): DatabaseOptions => {
     } catch (error) {
       throw new Error(`Failed to load SSL certificates. Ensure the files exist and are accessible. Details: ${(error as Error).message}`);
     }
+  } else {
+    poolConfig.ssl = false;
   }
+
   return poolConfig;
 };
 
