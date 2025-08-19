@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.0.0](https://github.com/MapColonies/retiler/compare/v3.2.0...v4.0.0) (2025-08-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* optionally filter out blank tiles and service modernize ([#41](https://github.com/MapColonies/retiler/issues/41))
+
+### Features
+
+* optionally filter out blank tiles and service modernize ([#41](https://github.com/MapColonies/retiler/issues/41)) ([adaf4bf](https://github.com/MapColonies/retiler/commit/adaf4bf50f5eec52f733d568156099b9c38de64f))
+
 ## [3.2.0](https://github.com/MapColonies/retiler/compare/v3.1.1...v3.2.0) (2024-12-08)
 
 
