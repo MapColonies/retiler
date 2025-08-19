@@ -1,13 +1,15 @@
 import { readFile } from 'fs/promises';
 import { IDetilerClient } from '@map-colonies/detiler-client';
 import jsLogger from '@map-colonies/js-logger';
-import config from 'config';
 import { AxiosInstance } from 'axios';
-import client from 'prom-client';
+import { Registry } from 'prom-client';
+import { ConfigType } from '../../src/common/config';
 import { MapProvider, MapSplitterProvider, TilesStorageProvider } from '../../src/retiler/interfaces';
 import { TileProcessor } from '../../src/retiler/tileProcessor';
 import { timestampToUnix } from '../../src/common/util';
 import { MILLISECONDS_IN_SECOND } from '../../src/common/constants';
+import { MapSplitResult } from '../../src/retiler/types';
+import { createBlankBuffer } from '../integration/helpers';
 
 const REMOTE_STATE_TIMESTAMP = '2024-01-15T21:20:36Z';
 
@@ -26,6 +28,7 @@ describe('TileProcessor', () => {
     const splitMap = jest.fn();
     const storeTile = jest.fn();
     const storeTiles = jest.fn();
+    const deleteTiles = jest.fn();
     const getTileDetails = jest.fn();
     const setTileDetails = jest.fn();
     const queryCooldownsAsyncGenerator = jest.fn();
@@ -38,12 +41,14 @@ describe('TileProcessor', () => {
               name: 'testKit',
               stateUrl: 'stateUrlTest',
             };
+          case 'detiler.proceedOnFailure':
+            return true;
           default:
-            return config.get<unknown>(key);
+            return;
         }
       }),
       has: jest.fn(),
-    };
+    } as unknown as ConfigType;
 
     beforeEach(function () {
       mapProv = {
@@ -57,11 +62,13 @@ describe('TileProcessor', () => {
       tilesStorageProv = {
         storeTile,
         storeTiles,
+        deleteTiles,
       };
 
       anotherTilesStorageProv = {
         storeTile,
         storeTiles,
+        deleteTiles,
       };
 
       mockedClient = { get: jest.fn() } as unknown as jest.Mocked<AxiosInstance>;
@@ -83,7 +90,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -95,7 +102,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
     });
@@ -114,10 +121,16 @@ describe('TileProcessor', () => {
 
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
 
@@ -161,10 +174,16 @@ describe('TileProcessor', () => {
 
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
 
@@ -236,7 +255,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         undefined,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -244,10 +263,16 @@ describe('TileProcessor', () => {
 
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
 
@@ -298,10 +323,16 @@ describe('TileProcessor', () => {
 
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
 
@@ -331,7 +362,7 @@ describe('TileProcessor', () => {
           }
         }),
         has: jest.fn(),
-      };
+      } as unknown as ConfigType;
 
       const tileProcessorWithForce = new TileProcessor(
         jsLogger({ enabled: false }),
@@ -341,7 +372,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -352,10 +383,16 @@ describe('TileProcessor', () => {
 
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(tileProcessorWithForce.processTile(tile)).resolves.not.toThrow();
 
@@ -381,10 +418,16 @@ describe('TileProcessor', () => {
 
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processorWithMultiStores.processTile(tile)).resolves.not.toThrow();
 
@@ -412,10 +455,16 @@ describe('TileProcessor', () => {
       getTileDetails.mockRejectedValue(new Error());
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
 
@@ -434,10 +483,16 @@ describe('TileProcessor', () => {
       mockedClient.get.mockRejectedValue(new Error());
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
 
@@ -455,10 +510,16 @@ describe('TileProcessor', () => {
       getTileDetails.mockResolvedValue(null);
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
       setTileDetails.mockRejectedValue(new Error());
 
       await expect(processor.processTile(tile)).resolves.not.toThrow();
@@ -470,6 +531,73 @@ describe('TileProcessor', () => {
       expect(mapSplitterProv.splitMap).toHaveBeenCalled();
       expect(tilesStorageProv.storeTiles).toHaveBeenCalled();
       expect(mockedDetiler.setTileDetails).toHaveBeenCalled();
+    });
+
+    it('should not store any blank sub tiles for a blank tile and resolve without errors', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      const blankTiles = [
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+        { z: 0, x: 0, y: 1, metatile: 1 },
+        { z: 0, x: 1, y: 1, metatile: 1 },
+      ];
+      getTileDetails.mockResolvedValue(null);
+      const getMapResponse = createBlankBuffer();
+      getMap.mockResolvedValue(getMapResponse);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [],
+        blankTiles,
+        outOfBoundsCount: 0,
+        isMetatileBlank: true,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalledTimes(0);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledTimes(1);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledWith(blankTiles);
+    });
+
+    it('should store splitted tiles and delete blank tiles and resolve without errors', async () => {
+      const tile = { x: 0, y: 0, z: 0, metatile: 8 };
+      const splittedTiles = [
+        { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+      ];
+      const blankTiles = [
+        { z: 0, x: 0, y: 0, metatile: 1 },
+        { z: 0, x: 1, y: 0, metatile: 1 },
+        { z: 0, x: 0, y: 1, metatile: 1 },
+        { z: 0, x: 1, y: 1, metatile: 1 },
+      ];
+      getTileDetails.mockResolvedValue(null);
+      const getMapResponse = createBlankBuffer();
+      getMap.mockResolvedValue(getMapResponse);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles,
+        blankTiles,
+        outOfBoundsCount: 0,
+        isMetatileBlank: true,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mockedDetiler.getTileDetails).toHaveBeenCalledWith({ kit: 'testKit', x: 0, y: 0, z: 0 });
+      expect(mockedClient.get.mock.calls).toHaveLength(0);
+      expect(mockedDetiler.queryCooldownsAsyncGenerator).not.toHaveBeenCalled();
+      expect(mapProv.getMap).toHaveBeenCalled();
+      expect(mapSplitterProv.splitMap).toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalledTimes(1);
+      expect(tilesStorageProv.storeTiles).toHaveBeenCalledWith(splittedTiles);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledTimes(1);
+      expect(tilesStorageProv.deleteTiles).toHaveBeenCalledWith(blankTiles);
     });
 
     it('should fail if setTileDetails fails and configured to not proceed on detiler failure', async () => {
@@ -486,7 +614,7 @@ describe('TileProcessor', () => {
           }
         }),
         has: jest.fn(),
-      };
+      } as unknown as ConfigType;
 
       const tileProcessorWithNoProceeding = new TileProcessor(
         jsLogger({ enabled: false }),
@@ -496,7 +624,7 @@ describe('TileProcessor', () => {
         mockedClient,
         configMock,
         mockedDetiler,
-        new client.Registry(),
+        new Registry(),
         []
       );
 
@@ -504,10 +632,16 @@ describe('TileProcessor', () => {
       getTileDetails.mockResolvedValue(null);
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
       const error = new Error('detiler set error');
       setTileDetails.mockRejectedValue(error);
 
@@ -563,10 +697,16 @@ describe('TileProcessor', () => {
       getTileDetails.mockResolvedValue(null);
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
       const storeTileError = new Error('store tile error');
       storeTiles.mockRejectedValue(storeTileError);
 
@@ -586,10 +726,16 @@ describe('TileProcessor', () => {
       getTileDetails.mockResolvedValue(null);
       const getMapResponse = Buffer.from('test');
       getMap.mockResolvedValue(getMapResponse);
-      splitMap.mockResolvedValue([
-        { z: 0, x: 0, y: 0, metatile: 1 },
-        { z: 0, x: 1, y: 0, metatile: 1 },
-      ]);
+      const splitResultMock: MapSplitResult = {
+        splittedTiles: [
+          { z: 0, x: 0, y: 0, metatile: 1, buffer: Buffer.from([]) },
+          { z: 0, x: 1, y: 0, metatile: 1, buffer: Buffer.from([]) },
+        ],
+        blankTiles: [],
+        outOfBoundsCount: 0,
+        isMetatileBlank: false,
+      };
+      splitMap.mockResolvedValue(splitResultMock);
       const storeTileError = new Error('store tile error');
       storeTiles.mockResolvedValueOnce(undefined).mockRejectedValue(storeTileError);
 

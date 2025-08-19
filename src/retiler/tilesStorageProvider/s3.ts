@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/naming-convention */ // s3-client object commands arguments
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, ObjectIdentifier, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { EndpointV2 } from '@smithy/types';
-import { Logger } from '@map-colonies/js-logger';
+import { type Logger } from '@map-colonies/js-logger';
 import { Tile } from '@map-colonies/tile-calc';
 import Format from 'string-format';
 import { inject, injectable } from 'tsyringe';
 import { S3_BUCKET, SERVICES, TILES_STORAGE_LAYOUT } from '../../common/constants';
 import { timerify } from '../../common/util';
 import { TilesStorageProvider } from '../interfaces';
-import { TileWithBuffer } from '../types';
+import { TileWithBuffer, TileWithMetadata } from '../types';
 import { getFlippedY } from '../util';
-import { TileStoragLayout } from './interfaces';
+import { type TileStoragLayout } from './interfaces';
+import { S3_BATCH_DELETE_MAX_SIZE } from './constants';
 
 @injectable()
 export class S3TilesStorage implements TilesStorageProvider {
@@ -50,7 +51,11 @@ export class S3TilesStorage implements TilesStorageProvider {
   }
 
   public async storeTiles(tiles: TileWithBuffer[]): Promise<void> {
-    const parent = tiles[0].parent;
+    if (tiles.length === 0) {
+      return;
+    }
+
+    const parent = tiles[0]?.parent;
 
     if (this.endpoint === undefined) {
       const region = await this.s3Client.config.region();
@@ -63,6 +68,87 @@ export class S3TilesStorage implements TilesStorageProvider {
 
     this.logger.debug({
       msg: 'finished storing batch of tiles',
+      duration,
+      parent,
+      count: tiles.length,
+      endpoint: this.endpoint,
+      bucketName: this.bucket,
+    });
+  }
+
+  public async deleteTiles(tiles: TileWithMetadata[]): Promise<void> {
+    if (tiles.length === 0) {
+      return;
+    }
+
+    const parent = tiles[0]?.parent;
+
+    this.logger.info({
+      msg: 'executing batch deletion of tiles from bucket',
+      parent,
+      count: tiles.length,
+      endpoint: this.endpoint,
+      bucketName: this.bucket,
+      maxBatchSize: S3_BATCH_DELETE_MAX_SIZE,
+    });
+
+    const keysToDelete: ObjectIdentifier[] = tiles.map((tile) => ({ Key: this.determineKey(tile) }));
+
+    const batches: ObjectIdentifier[][] = [];
+
+    for (let i = 0; i < keysToDelete.length; i += S3_BATCH_DELETE_MAX_SIZE) {
+      batches.push(keysToDelete.slice(i, i + S3_BATCH_DELETE_MAX_SIZE));
+    }
+
+    const deletePromises = batches.map(async (batch, index) => {
+      const command = new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: { Objects: batch, Quiet: true },
+      });
+
+      try {
+        const response = await this.s3Client.send(command);
+
+        if (response.Errors && response.Errors.length > 0) {
+          response.Errors.forEach((error) => {
+            this.logger.error({
+              msg: 'an error occurred during tile deletion for a key',
+              err: error.Message,
+              key: error.Key,
+              parent,
+              endpoint: this.endpoint,
+              bucketName: this.bucket,
+            });
+          });
+
+          throw new Error(`batch deleteion ${index} partially failed with at least one out of ${batch.length} object deletion failure`);
+        }
+
+        this.logger.debug({
+          msg: `finished the deletion of batch ${index + 1}/${batches.length} of tiles`,
+          count: batch.length,
+          parent,
+          endpoint: this.endpoint,
+          bucketName: this.bucket,
+        });
+      } catch (error) {
+        const s3Error = error as Error;
+        this.logger.error({
+          msg: `an error occurred during batch tile deletion (batch ${index + 1}/${batches.length})`,
+          err: s3Error,
+          count: batch.length,
+          parent,
+          endpoint: this.endpoint,
+          bucketName: this.bucket,
+        });
+        throw new Error(`an error occurred during the delete of a batch of keys on bucket ${this.bucket}, ${s3Error.message}`);
+      }
+    });
+
+    const [, duration] = await timerify(async () => Promise.all(deletePromises));
+
+    this.logger.debug({
+      msg: 'finished batch deletion of tiles',
       duration,
       parent,
       count: tiles.length,

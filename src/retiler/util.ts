@@ -4,6 +4,7 @@ export const isTileInBounds = (tile: Tile): boolean => {
   try {
     validateTile(tile, TILEGRID_WORLD_CRS84);
     return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return false;
   }

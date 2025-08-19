@@ -21,7 +21,6 @@ describe('wmsMapProvider', () => {
       const wmsConfig: WmsConfig = { version: '1.1.1', layers: 'someLayer', styles: 'someStyle' };
       const wmsProv = new WmsMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'image/png', wmsConfig);
 
-      /* eslint-disable @typescript-eslint/naming-convention */
       const response = { data: Buffer.from('test'), headers: { 'content-type': 'image/png' } };
       mockedClient.get.mockResolvedValue(response);
 
@@ -29,7 +28,7 @@ describe('wmsMapProvider', () => {
 
       const buffer = await wmsProv.getMap(tile);
 
-      const wmsReqParams = mockedClient.get.mock.calls[0][1]?.params as WmsRequestParams;
+      const wmsReqParams = mockedClient.get.mock.calls[0]![1]?.params as WmsRequestParams;
 
       expect(mockedClient.get.mock.calls).toHaveLength(1);
       expect(wmsReqParams).not.toHaveProperty('crs');
@@ -49,7 +48,6 @@ describe('wmsMapProvider', () => {
 
       const wmsProv = new WmsMapProvider(mockedClient, jsLogger({ enabled: false }), 'http://url.com', 'image/png', wmsConfig);
 
-      /* eslint-disable @typescript-eslint/naming-convention */
       const response = { data: Buffer.from('test'), headers: { 'content-type': 'image/png' } };
       mockedClient.get.mockResolvedValue(response);
 
@@ -57,7 +55,7 @@ describe('wmsMapProvider', () => {
 
       const buffer = await wmsProv.getMap(tile);
 
-      const wmsReqParams = mockedClient.get.mock.calls[0][1]?.params as WmsRequestParams;
+      const wmsReqParams = mockedClient.get.mock.calls[0]![1]?.params as WmsRequestParams;
 
       expect(mockedClient.get.mock.calls).toHaveLength(1);
       expect(wmsReqParams).not.toHaveProperty('srs');

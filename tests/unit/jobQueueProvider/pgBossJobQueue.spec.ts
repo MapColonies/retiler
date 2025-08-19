@@ -1,7 +1,7 @@
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import client from 'prom-client';
+import { Registry } from 'prom-client';
 import jsLogger from '@map-colonies/js-logger';
-import PgBoss from 'pg-boss';
+import pgBoss from 'pg-boss';
 import { serializeError } from 'serialize-error';
 import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pgBossJobQueue';
 import { LONG_RUNNING_TEST } from '../../integration/helpers';
@@ -31,7 +31,7 @@ describe('PgBossJobQueueProvider', () => {
   });
 
   beforeEach(function () {
-    provider = new PgBossJobQueueProvider(pgbossMock as unknown as PgBoss, jsLogger({ enabled: false }), 'queue-name', 50, new client.Registry());
+    provider = new PgBossJobQueueProvider(pgbossMock as unknown as pgBoss, jsLogger({ enabled: false }), 'queue-name', 50, new Registry());
   });
 
   afterEach(function () {

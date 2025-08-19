@@ -1,4 +1,4 @@
-import { TileWithBuffer, TileWithMetadata } from './types';
+import { MapSplitResult, TileWithBuffer, TileWithMetadata } from './types';
 
 export interface JobQueueProvider {
   activeQueueName: string;
@@ -12,10 +12,11 @@ export interface MapProvider {
 }
 
 export interface MapSplitterProvider {
-  splitMap: (tile: TileWithBuffer) => Promise<TileWithBuffer[]>;
+  splitMap: (tile: TileWithBuffer, filterBlanks?: boolean) => Promise<MapSplitResult>;
 }
 
 export interface TilesStorageProvider {
   storeTile: (tile: TileWithBuffer) => Promise<void>;
   storeTiles: (tiles: TileWithBuffer[]) => Promise<void>;
+  deleteTiles: (tiles: TileWithMetadata[]) => Promise<void>;
 }

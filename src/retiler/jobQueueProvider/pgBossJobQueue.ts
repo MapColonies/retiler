@@ -1,8 +1,8 @@
-import EventEmitter from 'node:events';
+import { EventEmitter } from 'node:events';
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises';
-import client from 'prom-client';
-import { Logger } from '@map-colonies/js-logger';
-import PgBoss, { JobWithMetadata } from 'pg-boss';
+import { Registry, Gauge } from 'prom-client';
+import { type Logger } from '@map-colonies/js-logger';
+import pgBoss, { JobWithMetadata } from 'pg-boss';
 import { inject, injectable } from 'tsyringe';
 import { serializeError } from 'serialize-error';
 import { METRICS_REGISTRY, QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
@@ -18,18 +18,19 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
   private readonly jobFinishedEventName = 'jobFinished';
 
   public constructor(
-    private readonly pgBoss: PgBoss,
+    @inject(SERVICES.PGBOSS) private readonly pgBoss: pgBoss,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(QUEUE_NAME) private readonly queueName: string,
     @inject(QUEUE_EMPTY_TIMEOUT) private readonly queueWaitTimeout: number,
-    @inject(METRICS_REGISTRY) registry?: client.Registry
+    @inject(METRICS_REGISTRY) registry?: Registry
   ) {
     if (registry !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-this-alias
       const self = this;
-      new client.Gauge({
+      new Gauge({
         name: 'retiler_current_running_job_count',
         help: 'The number of jobs currently running',
+        /* istanbul ignore next */
         collect(): void {
           this.set(self.runningJobs);
         },
@@ -125,7 +126,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
     }
   }
 
-  private async *getJobsIterator<T>(): AsyncGenerator<PgBoss.JobWithMetadata<T>> {
+  private async *getJobsIterator<T>(): AsyncGenerator<pgBoss.JobWithMetadata<T>> {
     /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */ // fetch the job unconditionally until the queue ends
     while (true) {
       if (this.isDraining || !this.isRunning) {
@@ -134,7 +135,7 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
 
       const jobs = await this.pgBoss.fetch<T>(this.queueName, 1, { includeMetadata: true });
 
-      if (jobs === null || jobs.length === 0) {
+      if (jobs === null || jobs.length === 0 || jobs[0] === undefined) {
         this.logger.info({ msg: 'queue is empty, waiting for data' });
         await setTimeoutPromise(this.queueWaitTimeout);
         continue;

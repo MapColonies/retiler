@@ -14,7 +14,9 @@
         "user": "postgres",
         "password": "1234",
         "schema": "public",
-        "enableSslAuth": false,
+        "ssl": {
+          "enabled": false
+        },
         "database": "postgres",
         "noSupervisor": true
       }
