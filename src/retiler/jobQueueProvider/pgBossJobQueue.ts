@@ -8,6 +8,7 @@ import { serializeError } from 'serialize-error';
 import { type Tracer, SpanStatusCode } from '@opentelemetry/api';
 import { jobAttributes, spanName } from '@src/common/tracing/job';
 import { METRICS_REGISTRY, QUEUE_EMPTY_TIMEOUT, QUEUE_NAME, SERVICES } from '../../common/constants';
+import { NonRetryableError } from '../../common/errors';
 import { JobQueueProvider } from '../interfaces';
 
 @injectable()
@@ -123,8 +124,14 @@ export class PgBossJobQueueProvider implements JobQueueProvider {
         span.setStatus({ code: SpanStatusCode.OK });
       } catch (err) {
         const error = err as Error;
-        this.logger.error({ err: error, jobId: job.id, job });
-        await this.pgBoss.fail(this.queueName, job.id, serializeError(error));
+        if (error instanceof NonRetryableError) {
+          // pg-boss fail() retries while retries remain, cancel() is its only terminal state without a retry
+          this.logger.error({ msg: 'job cannot succeed on retry, cancelling it', err: error, jobId: job.id, job });
+          await this.pgBoss.cancel(this.queueName, job.id);
+        } else {
+          this.logger.error({ err: error, jobId: job.id, job });
+          await this.pgBoss.fail(this.queueName, job.id, serializeError(error));
+        }
         span.setStatus({ code: SpanStatusCode.ERROR });
         span.recordException(error);
       } finally {

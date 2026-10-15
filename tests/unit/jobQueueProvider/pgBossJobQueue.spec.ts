@@ -3,6 +3,7 @@ import { Registry } from 'prom-client';
 import { jsLogger, type Logger } from '@map-colonies/js-logger';
 import type { PgBoss } from 'pg-boss';
 import { serializeError } from 'serialize-error';
+import { NonRetryableError } from '../../../src/common/errors';
 import { PgBossJobQueueProvider } from '../../../src/retiler/jobQueueProvider/pgBossJobQueue';
 import { LONG_RUNNING_TEST } from '../../integration/helpers';
 
@@ -17,6 +18,7 @@ describe('PgBossJobQueueProvider', () => {
     getQueueSize: jest.Mock;
     complete: jest.Mock;
     fail: jest.Mock;
+    cancel: jest.Mock;
     fetch: jest.Mock;
   };
 
@@ -32,6 +34,7 @@ describe('PgBossJobQueueProvider', () => {
       getQueueSize: jest.fn(),
       complete: jest.fn(),
       fail: jest.fn(),
+      cancel: jest.fn(),
       fetch: jest.fn(),
     };
   });
@@ -139,6 +142,23 @@ describe('PgBossJobQueueProvider', () => {
 
       expect(pgbossMock.complete).not.toHaveBeenCalled();
       expect(pgbossMock.fail).toHaveBeenCalledWith('queue-name', id, serializeError(fetchError));
+    });
+
+    it('should cancel instead of failing a job whose error cannot be fixed by a retry', async () => {
+      const id = 'someId';
+      pgbossMock.fetch.mockResolvedValueOnce([{ id }]);
+
+      const fnMock = jest.fn().mockRejectedValue(new NonRetryableError('refused'));
+
+      await provider.startQueue();
+      const queuePromise = provider.consumeQueue(fnMock);
+      await setTimeoutPromise(50);
+      await provider.stopQueue();
+      await expect(queuePromise).resolves.not.toThrow();
+
+      expect(pgbossMock.complete).not.toHaveBeenCalled();
+      expect(pgbossMock.fail).not.toHaveBeenCalled();
+      expect(pgbossMock.cancel).toHaveBeenCalledWith('queue-name', id);
     });
   });
 });

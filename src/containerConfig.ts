@@ -28,6 +28,8 @@ import {
   METRICS_REGISTRY,
   ON_SIGNAL,
   HEALTHCHECK,
+  METATILE_PROCESSOR,
+  SHIGOLA_CONFIG,
 } from './common/constants';
 import type { InjectionObject } from './common/dependencyRegistration';
 import { registerDependencies } from './common/dependencyRegistration';
@@ -39,6 +41,8 @@ import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvide
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
+import { ShigolaCacheProcessor } from './retiler/shigola/shigolaCacheProcessor';
+import { TileProcessor } from './retiler/tileProcessor';
 import { tilesStorageProvidersFactory } from './retiler/tilesStorageProvider/factory';
 import type { ConfigType } from './common/config';
 import { getConfig } from './common/config';
@@ -206,11 +210,22 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           const config = container.resolve<ConfigType>(SERVICES.CONFIG);
           const mapProviderType = config.get('app.map.provider');
 
+          if (mapProviderType === 'shigola') {
+            // shigola caches the tiles itself, so no map provider, splitter, tiles storage or detiler is used
+            if (config.get('detiler.enabled')) {
+              container.resolve<Logger>(SERVICES.LOGGER).warn({ msg: 'detiler is enabled but not used with the shigola map provider' });
+            }
+            container.register(SHIGOLA_CONFIG, { useValue: config.get('app.map.shigola') });
+            container.register(METATILE_PROCESSOR, { useClass: ShigolaCacheProcessor }, { lifecycle: Lifecycle.Singleton });
+            return Promise.resolve();
+          }
+
           if (mapProviderType === 'wms') {
             container.register(MAP_PROVIDER, { useClass: WmsMapProvider });
           } else {
             container.register(MAP_PROVIDER, { useClass: ArcgisMapProvider });
           }
+          container.register(METATILE_PROCESSOR, { useClass: TileProcessor }, { lifecycle: Lifecycle.Singleton });
           return Promise.resolve();
         },
       },

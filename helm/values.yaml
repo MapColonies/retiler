@@ -93,6 +93,20 @@ env:
       version: 1.3.0
       layers: MAP_WMS_LAYERS
       styles: MAP_WMS_STYLES
+    # used when provider is shigola, url is then shigola's cache admin api
+    shigola:
+      operation: purge # purge or seed, a seed always overwrites
+      targets: '[{"map": "osm"}]' # json array of {map, layers?}, layers for purge only
+      # json array, empty for every set each map serves. the zoom sent is the metatile's WorldCRS84Quad
+      # zoom, so other sets would be refreshed at that zoom number over a different extent
+      tileMatrixSets: '["WorldCRS84Quad"]'
+      # the admin api bearer token, empty if shigola has none. either a value stored in the chart's secret,
+      # or a key of an existing secret, which takes precedence
+      token: ''
+      existingSecret:
+        name: ''
+        key: token
+      timeoutMs: 70000 # keep above shigola's request_timeout_ms
     client:
       timeoutMs: 60000
   tilesStorage:

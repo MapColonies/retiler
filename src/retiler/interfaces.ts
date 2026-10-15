@@ -7,6 +7,10 @@ export interface JobQueueProvider {
   stopQueue: () => Promise<void>;
 }
 
+export interface MetatileProcessor {
+  processTile: (tile: TileWithMetadata) => Promise<void>;
+}
+
 export interface MapProvider {
   getMap: (tile: TileWithMetadata) => Promise<Buffer>;
 }

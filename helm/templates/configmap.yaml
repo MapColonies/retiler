@@ -64,6 +64,14 @@ data:
   MAP_WMS_VERSION: {{ .map.wms.version }}
   MAP_WMS_LAYERS: {{ .map.wms.layers | quote }}
   MAP_WMS_STYLES: {{ .map.wms.styles | quote }}
+  {{- if eq .map.provider "shigola" }}
+  MAP_SHIGOLA_OPERATION: {{ .map.shigola.operation }}
+  MAP_SHIGOLA_TARGETS: {{ .map.shigola.targets | quote }}
+  MAP_SHIGOLA_TIMEOUT_MS: {{ .map.shigola.timeoutMs | quote }}
+  {{- if .map.shigola.tileMatrixSets }}
+  MAP_SHIGOLA_TILE_MATRIX_SETS: {{ .map.shigola.tileMatrixSets | quote }}
+  {{- end }}
+  {{- end }}
   TILES_STORAGE_PROVIDERS: {{ .tilesStorage.providers | quote }}
   TILES_STORAGE_LAYOUT_FORMAT: {{ .tilesStorage.layout.format }}
   TILES_STORAGE_LAYOUT_SHOULD_FLIP_Y: {{ .tilesStorage.layout.shouldFlipY | quote }}
