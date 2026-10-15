@@ -1558,4 +1558,153 @@ describe('retiler', function () {
       LONG_RUNNING_TEST
     );
   });
+  describe('shigola', function () {
+    const shigolaUrl = 'http://shigola-admin:9090';
+    const target = { map: 'osm', layers: ['roads'] };
+    let container: DependencyContainer;
+
+    const registerShigola = async (shigolaConfig: Record<string, unknown>): Promise<DependencyContainer> =>
+      registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.map.provider':
+                      return 'shigola';
+                    case 'app.map.url':
+                      return shigolaUrl;
+                    case 'app.map.shigola':
+                      return { targets: [target], timeoutMs: 5000, ...shigolaConfig };
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: logger } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
+        ],
+        useChild: true,
+      });
+
+    const runJob = async (data: Record<string, unknown>): Promise<Awaited<ReturnType<typeof waitForJobToBeResolved>>> => {
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+      const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+      const queueName = container.resolve<string>(QUEUE_NAME);
+      const jobId = await pgBoss.send({ name: queueName, data });
+
+      const consumePromise = consumeAndProcessFactory(container)();
+      const job = await waitForJobToBeResolved(pgBoss, queueName, jobId as string);
+
+      await provider.stopQueue();
+      await expect(consumePromise).resolves.not.toThrow();
+
+      return job;
+    };
+
+    afterEach(async () => {
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+      const queueName = container.resolve<string>(QUEUE_NAME);
+      await cleanupQueue(pgBoss, queueName);
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
+
+    describe('Happy Path', function () {
+      it(
+        'should complete a job with one purge request for the metatile bbox and zoom, using no detiler or tile storage',
+        async function () {
+          container = await registerShigola({ operation: 'purge', token: 'secret' });
+          const shigolaScope = nock(shigolaUrl, { reqheaders: { authorization: 'Bearer secret' } })
+            .post('/cache/purge', { bounds: [-90, 0, 0, 90], zoomRange: { min: 2, max: 2 }, targets: [target] })
+            .reply(httpStatusCodes.OK, { purged: 4, skipped: 0, failed: 0, durationMs: 3 });
+
+          const job = await runJob({ z: 2, x: 1, y: 0, metatile: 2, parent: 'parent' });
+
+          expect(job).toHaveProperty('state', 'completed');
+          shigolaScope.done();
+          expect(s3SendMock).not.toHaveBeenCalled();
+          expect(fsPromises.writeFile).not.toHaveBeenCalled();
+          expect(detilerScope.isDone()).toBe(true);
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should complete a job with a seed request that overwrites, sending no token when none is configured',
+        async function () {
+          container = await registerShigola({ operation: 'seed', targets: [{ map: 'osm' }], tileMatrixSets: ['WorldCRS84Quad'] });
+          const shigolaScope = nock(shigolaUrl, { badheaders: ['authorization'] })
+            .post('/cache/seed', {
+              bounds: [-180, -90, 180, 90],
+              zoomRange: { min: 0, max: 0 },
+              targets: [{ map: 'osm' }],
+              tileMatrixSets: ['WorldCRS84Quad'],
+              overwrite: true,
+            })
+            .reply(httpStatusCodes.OK, { seeded: 2, skipped: 0, failed: 0, durationMs: 3 });
+
+          const job = await runJob({ z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' });
+
+          expect(job).toHaveProperty('state', 'completed');
+          shigolaScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+    });
+
+    describe('Bad Path', function () {
+      it(
+        'should cancel the job without a retry if shigola refuses the request',
+        async function () {
+          container = await registerShigola({ operation: 'purge' });
+          const shigolaScope = nock(shigolaUrl).post('/cache/purge').reply(httpStatusCodes.BAD_REQUEST, { error: 'targets[0]: no map named "osm"' });
+
+          const job = await runJob({ z: 2, x: 1, y: 0, metatile: 2, parent: 'parent' });
+
+          expect(job).toHaveProperty('state', 'cancelled');
+          shigolaScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should fail the job for a retry if shigola is unavailable',
+        async function () {
+          container = await registerShigola({ operation: 'purge' });
+          const shigolaScope = nock(shigolaUrl)
+            .post('/cache/purge')
+            .reply(httpStatusCodes.SERVICE_UNAVAILABLE, { purged: 1, skipped: 0, failed: 0, durationMs: 60000 });
+
+          const job = await runJob({ z: 2, x: 1, y: 0, metatile: 2, parent: 'parent' });
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'Request failed with status code 503');
+          shigolaScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+
+      it(
+        'should fail the job for a retry if shigola cannot be reached',
+        async function () {
+          container = await registerShigola({ operation: 'purge' });
+          const shigolaScope = nock(shigolaUrl).post('/cache/purge').replyWithError({ message: 'connect ECONNREFUSED', code: 'ECONNREFUSED' });
+
+          const job = await runJob({ z: 2, x: 1, y: 0, metatile: 2, parent: 'parent' });
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'connect ECONNREFUSED');
+          shigolaScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+    });
+  });
 });
