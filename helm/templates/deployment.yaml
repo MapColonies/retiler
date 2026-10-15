@@ -73,6 +73,15 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: {{ printf "[%s/%s]" .Values.caPath .Values.caKey | quote }}
             {{- end }}
+            {{- with .Values.env.map }}
+            {{- if and (eq .provider "shigola") (.shigola.existingSecret | default dict).name }}
+            - name: MAP_SHIGOLA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .shigola.existingSecret.name | quote }}
+                  key: {{ .shigola.existingSecret.key | quote }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.extraEnvVars }}
             {{- toYaml .Values.extraEnvVars | nindent 12 }}
             {{- end }}

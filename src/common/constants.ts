@@ -24,6 +24,8 @@ export const METRICS_REGISTRY = Symbol('MetricsRegistry');
 export const MAP_URL = Symbol('MapURL');
 export const MAP_FORMAT = Symbol('MapFormat');
 export const MAP_PROVIDER_CONFIG = Symbol('MapProviderConfig');
+export const SHIGOLA_CONFIG = Symbol('ShigolaConfig');
+export const METATILE_PROCESSOR = Symbol('MetatileProcessor');
 
 export const S3_BUCKET = Symbol('S3Bucket');
 export const TILES_STORAGE_LAYOUT = Symbol('TilesStorageLayout');

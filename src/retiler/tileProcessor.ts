@@ -19,7 +19,7 @@ import {
   TILES_STORAGE_PROVIDERS,
 } from '../common/constants';
 import { endMetricTimer, MetatileStatus, ProcessKind, ProcessReason, ProcessSkipReason, SubTileStatus } from '../common/metrics';
-import { type MapProvider, type MapSplitterProvider, type TilesStorageProvider } from './interfaces';
+import { type MapProvider, type MapSplitterProvider, type MetatileProcessor, type TilesStorageProvider } from './interfaces';
 import { TileWithMetadata } from './types';
 
 interface PreProcessReult {
@@ -28,7 +28,7 @@ interface PreProcessReult {
 }
 
 @injectable()
-export class TileProcessor {
+export class TileProcessor implements MetatileProcessor {
   private readonly project: IProjectConfig;
   private readonly forceProcess: boolean;
   private readonly shouldFilterBlankTiles: boolean;

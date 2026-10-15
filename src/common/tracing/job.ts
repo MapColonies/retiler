@@ -13,6 +13,12 @@ export const jobAttributes = {
   TILES_BLANK_COUNT: 'tiles.blank_count',
   TILES_OUT_OF_BOUNDS_COUNT: 'tiles.out_of_bounds_count',
   MAP_PROVIDER: 'map.provider',
+  HTTP_STATUS: 'http.response.status_code',
+  SHIGOLA_OPERATION: 'shigola.operation',
+  SHIGOLA_OUTCOME: 'shigola.outcome',
+  SHIGOLA_TILES_DONE: 'shigola.tiles.done',
+  SHIGOLA_TILES_SKIPPED: 'shigola.tiles.skipped',
+  SHIGOLA_TILES_FAILED: 'shigola.tiles.failed',
 } satisfies Record<string, string>;
 
 export const spanName = {
@@ -24,4 +30,5 @@ export const spanName = {
   TILE_DELETE: 'tile.delete',
   TILE_POSTPROCESS: 'tile.post_process',
   JOB_PROCESS: 'job.process',
+  SHIGOLA_CACHE: 'shigola.cache',
 } satisfies Record<string, string>;
