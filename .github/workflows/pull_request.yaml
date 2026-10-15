@@ -48,7 +48,7 @@ jobs:
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
-    container: node:24-bullseye
+    container: node:24-bookworm
 
     strategy:
       matrix:
@@ -106,7 +106,7 @@ jobs:
           apt-get update && apt-get install -y lsb-release curl ca-certificates
           install -d /usr/share/postgresql-common/pgdg
           curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bullseye-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           apt-get update
           apt-get install -y postgresql-client
 
