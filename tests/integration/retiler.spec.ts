@@ -29,6 +29,7 @@ import {
 } from '../../src/common/constants';
 import type { PgBossJobQueueProvider } from '../../src/retiler/jobQueueProvider/pgBossJobQueue';
 import type { TilesStorageProvider } from '../../src/retiler/interfaces';
+import type { PurgeRequest } from '../../src/retiler/cachePurger/httpCachePurger';
 import { getFlippedY } from '../../src/retiler/util';
 import type { TileStoragLayout } from '../../src/retiler/tilesStorageProvider/interfaces';
 import { FS_FILE_NOT_FOUND_ERROR_CODE } from '../../src/retiler/tilesStorageProvider/constants';
@@ -1557,6 +1558,108 @@ describe('retiler', function () {
         expect(job).toHaveProperty('state', 'completed');
 
         getMapScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+  });
+
+  describe('cache purger', function () {
+    const cachePurgerConfig = { url: 'http://cache-purger.com', map: 'osm', token: 'token', timeoutMs: 1000 };
+    let container: DependencyContainer;
+
+    beforeEach(async () => {
+      container = await registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.cachePurger':
+                      return cachePurgerConfig;
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: logger } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
+        ],
+        useChild: true,
+      });
+    });
+
+    afterEach(async () => {
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+      const queueName = container.resolve<string>(QUEUE_NAME);
+      await cleanupQueue(pgBoss, queueName);
+    });
+
+    afterAll(async () => {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
+
+    it(
+      'should purge the cache of the tile and complete the job',
+      async function () {
+        detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+        detilerPutInterceptor.reply(httpStatusCodes.OK);
+        const purgeScope = nock(cachePurgerConfig.url)
+          .post('/cache/purge', (body: PurgeRequest) => body.targets[0]?.map === 'osm' && body.zoomRange.min === 1 && body.zoomRange.max === 1)
+          .matchHeader('authorization', 'Bearer token')
+          .reply(httpStatusCodes.OK, { purged: 4, skipped: 0, failed: 0, durationMs: 1 });
+
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 1, x: 0, y: 0, metatile: 2, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, queueName, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'completed');
+
+        purgeScope.done();
+        detilerScope.done();
+      },
+      LONG_RUNNING_TEST
+    );
+
+    it(
+      'should fail the job if the purge request has failed',
+      async function () {
+        detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+        const purgeScope = nock(cachePurgerConfig.url).post('/cache/purge').reply(httpStatusCodes.INTERNAL_SERVER_ERROR);
+
+        const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+        const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+        const queueName = container.resolve<string>(QUEUE_NAME);
+        const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+        const consumePromise = consumeAndProcessFactory(container)();
+
+        const job = await waitForJobToBeResolved(pgBoss, queueName, jobId as string);
+
+        await provider.stopQueue();
+
+        await expect(consumePromise).resolves.not.toThrow();
+
+        expect(job).toHaveProperty('state', 'failed');
+        expect(job).toHaveProperty('output.message', 'Request failed with status code 500');
+
+        purgeScope.done();
         detilerScope.done();
       },
       LONG_RUNNING_TEST
