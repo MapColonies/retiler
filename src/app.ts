@@ -1,16 +1,13 @@
 import type { Logger } from '@map-colonies/js-logger';
 import type { FactoryFunction } from 'tsyringe';
-import { JOB_QUEUE_PROVIDER, SERVICES, TILES_STORAGE_PROVIDERS } from './common/constants';
+import { JOB_QUEUE_PROVIDER, SERVICES, TILE_PROCESSOR } from './common/constants';
 import { timerify } from './common/util';
-import type { JobQueueProvider, TilesStorageProvider } from './retiler/interfaces';
-import { TileProcessor } from './retiler/tileProcessor';
+import type { ITileProcessor, JobQueueProvider } from './retiler/interfaces';
 import type { TileWithMetadata } from './retiler/types';
 import type { ConfigType } from './common/config';
 
 export const consumeAndProcessFactory: FactoryFunction<() => Promise<void>> = (container) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used for tiles storage providers factory initialization before the tiles processor
-  const tilesStorageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
-  const processor = container.resolve(TileProcessor);
+  const processor = container.resolve<ITileProcessor>(TILE_PROCESSOR);
   const queueProv = container.resolve<JobQueueProvider>(JOB_QUEUE_PROVIDER);
   const logger = container.resolve<Logger>(SERVICES.LOGGER);
   const config = container.resolve<ConfigType>(SERVICES.CONFIG);

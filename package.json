@@ -38,7 +38,7 @@
     "@map-colonies/express-access-log-middleware": "^4.1.0",
     "@map-colonies/js-logger": "^5.0.0",
     "@map-colonies/read-pkg": "^2.0.0",
-    "@map-colonies/schemas": "^1.21.0",
+    "@map-colonies/schemas": "https://ghatmpstorage.blob.core.windows.net/npm-packages/schemas-84c46361c1402b838ab0aaa335c47a9700e0f9d5.tgz",
     "@map-colonies/tracing": "^1.0.0",
     "@map-colonies/prometheus": "^1.0.0",
     "@map-colonies/tracing-utils": "^1.0.0",

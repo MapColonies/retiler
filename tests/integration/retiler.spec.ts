@@ -93,7 +93,11 @@ describe('retiler', function () {
     logger = await jsLogger({ enabled: false });
     await initConfig(true);
     config = getConfig();
-    mapUrl = config.get('app.map.url');
+    const mapConfig = config.get('app.map');
+    if (mapConfig === undefined) {
+      throw new Error('integration tests require app.map to be configured');
+    }
+    mapUrl = mapConfig.url;
     detilerUrl = config.get('detiler.client.url') as string;
     stateUrl = config.get('app.project.stateUrl');
     stateBuffer = await fsPromises.readFile('tests/state.txt');

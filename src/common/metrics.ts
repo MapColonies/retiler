@@ -2,6 +2,7 @@ import type { Histogram } from 'prom-client';
 
 export const enum ProcessKind {
   FETCH = 'fetch',
+  PURGE = 'purge',
   SPLIT = 'split',
   STORE = 'store',
   DELETE = 'delete',

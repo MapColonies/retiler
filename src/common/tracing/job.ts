@@ -19,6 +19,7 @@ export const spanName = {
   TILE_PROCESS: 'tile.process',
   TILE_PREPROCESS: 'tile.pre_process',
   TILE_FETCH: 'tile.fetch',
+  TILE_PURGE: 'tile.purge',
   TILE_SPLIT: 'tile.split',
   TILE_STORE: 'tile.store',
   TILE_DELETE: 'tile.delete',

@@ -9,7 +9,7 @@ export default async function (): Promise<void> {
   const projectName = config.get('app.project.name');
   const queueName = config.get('app.queueName');
   const pgBoss = pgBossFactory({ ...pgBossConfig, projectName, migrate: false, supervise: false, schedule: false });
-  const tileProviders = config.get('app.tilesStorage.providers');
+  const tileProviders = config.get('app.tilesStorage.providers') ?? [];
 
   for (const provider of tileProviders) {
     if (provider.kind === 's3') {
