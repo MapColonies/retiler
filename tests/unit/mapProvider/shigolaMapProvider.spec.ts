@@ -5,7 +5,9 @@ import { ShigolaMapProvider } from '../../../src/retiler/mapProvider/shigola/shi
 
 let logger: Logger;
 
-const configWithToken = (token?: string): ConfigType => ({ get: jest.fn().mockReturnValue(token) }) as unknown as ConfigType;
+const configWithToken = (token?: string): ConfigType =>
+  ({ get: jest.fn().mockImplementation((key: string) => (key === 'app.map.targetMap' ? 'osm' : token)) }) as unknown as ConfigType;
+const expectedBody = { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] };
 
 beforeAll(async () => {
   logger = await jsLogger({ enabled: false });
@@ -25,13 +27,13 @@ describe('ShigolaMapProvider', () => {
       jest.clearAllMocks();
     });
 
-    it('should post the tile bbox to the map url and resolve into an empty buffer', async function () {
+    it('should post a purge request for the tile to the map url and resolve into an empty buffer', async function () {
       post.mockResolvedValue({ data: {} });
 
       const buffer = await shigolaProv.getMap({ z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' });
 
       expect(buffer).toHaveLength(0);
-      expect(post).toHaveBeenCalledWith('http://shigola/route', { bbox: [-180, -90, 180, 90] }, { headers: undefined });
+      expect(post).toHaveBeenCalledWith('http://shigola/route', expectedBody, { headers: undefined });
     });
 
     it('should send the token as a bearer authorization header when configured', async function () {
@@ -45,7 +47,7 @@ describe('ShigolaMapProvider', () => {
 
       await shigolaProvWithToken.getMap({ z: 0, x: 0, y: 0, metatile: 8 });
 
-      expect(post).toHaveBeenCalledWith('http://shigola/route', { bbox: [-180, -90, 180, 90] }, { headers: { authorization: 'Bearer secret' } });
+      expect(post).toHaveBeenCalledWith('http://shigola/route', expectedBody, { headers: { authorization: 'Bearer secret' } });
     });
 
     it('should throw an error if the request has failed', async function () {

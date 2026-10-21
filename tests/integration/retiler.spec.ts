@@ -1036,6 +1036,8 @@ describe('retiler', function () {
                   switch (key) {
                     case 'app.map.provider':
                       return 'shigola';
+                    case 'app.map.targetMap':
+                      return 'osm';
                     case 'app.jobQueue.pgBoss.schema':
                       return 'public';
                     default:
@@ -1067,12 +1069,12 @@ describe('retiler', function () {
 
     describe('Happy path', function () {
       it(
-        'should send the tile bbox to shigola without fetching or storing the map',
+        'should send a purge request to shigola without fetching or storing the map',
         async function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const shigolaScope = nock(mapUrl)
-            .post(/.*/, { bbox: [-180, -90, 180, 90] })
+            .post(/.*/, { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] })
             .reply(httpStatusCodes.OK);
 
           const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
