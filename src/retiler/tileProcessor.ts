@@ -41,7 +41,7 @@ export class TileProcessor {
   public constructor(
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
     @inject(SERVICES.TRACER) private readonly tracer: Tracer,
-    @inject(MAP_PROVIDER) private readonly mapProvider: MapProvider | undefined,
+    @inject(MAP_PROVIDER) private readonly mapProvider: MapProvider,
     @inject(MAP_SPLITTER_PROVIDER) private readonly mapSplitter: MapSplitterProvider,
     @inject(TILES_STORAGE_PROVIDERS) private readonly tilesStorageProviders: TilesStorageProvider[],
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
@@ -112,7 +112,7 @@ export class TileProcessor {
           }
 
           if (this.config.get('app.map.provider') === 'shigola') {
-            await this.sendBboxToShigola(tile);
+            await this.fetchMap(tile);
             await this.runPostProcess(tile, preRenderTimestamp);
             this.tilesCounter?.inc({ status: MetatileStatus.COMPLETED, z: tile.z });
             return;
@@ -154,20 +154,9 @@ export class TileProcessor {
     });
   }
 
-  private async sendBboxToShigola(tile: TileWithMetadata): Promise<void> {
-    const { west, south, east, north } = tileToBoundingBox(tile, TILEGRID_WORLD_CRS84, true);
-    const bbox = [west, south, east, north];
-    this.logger.debug({ msg: 'sending bbox to shigola', tile, bbox });
-    await this.axiosClient.post(this.config.get('app.map.url'), { bbox });
-  }
-
   private async fetchMap(tile: TileWithMetadata): Promise<Buffer> {
-    if (this.mapProvider === undefined) {
-      throw new Error('map provider is not configured');
-    }
-    const getMap = this.mapProvider.getMap.bind(this.mapProvider);
     const fetchTimerEnd = this.tilesDurationHistogram?.startTimer({ kind: ProcessKind.FETCH, z: tile.z });
-    const mapBuffer = await this.withSpan(spanName.TILE_FETCH, {}, async () => getMap(tile));
+    const mapBuffer = await this.withSpan(spanName.TILE_FETCH, {}, async () => this.mapProvider.getMap(tile));
     endMetricTimer(fetchTimerEnd);
     return mapBuffer;
   }

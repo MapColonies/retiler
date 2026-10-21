@@ -39,6 +39,7 @@ import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvide
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
+import { ShigolaMapProvider } from './retiler/mapProvider/shigola/shigolaMapProvider';
 import { tilesStorageProvidersFactory } from './retiler/tilesStorageProvider/factory';
 import type { ConfigType } from './common/config';
 import { getConfig } from './common/config';
@@ -202,21 +203,18 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
             return config.get('app.map.wms');
           }),
         },
-      },
-      {
-        token: MAP_PROVIDER,
-        provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
-            const mapProviderType = config.get('app.map.provider');
+        postInjectionHook: async (container): Promise<void> => {
+          const config = container.resolve<ConfigType>(SERVICES.CONFIG);
+          const mapProviderType = config.get('app.map.provider');
 
-            if (mapProviderType === 'wms') {
-              return container.resolve(WmsMapProvider);
-            }
-            if (mapProviderType === 'arcgis') {
-              return container.resolve(ArcgisMapProvider);
-            }
-          }),
+          if (mapProviderType === 'wms') {
+            container.register(MAP_PROVIDER, { useClass: WmsMapProvider });
+          } else if (mapProviderType === 'shigola') {
+            container.register(MAP_PROVIDER, { useClass: ShigolaMapProvider });
+          } else {
+            container.register(MAP_PROVIDER, { useClass: ArcgisMapProvider });
+          }
+          return Promise.resolve();
         },
       },
       { token: TILES_STORAGE_PROVIDERS, provider: { useFactory: instancePerContainerCachingFactory(tilesStorageProvidersFactory) } },
