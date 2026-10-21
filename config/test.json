@@ -22,19 +22,6 @@
         "healthCheckTimeoutMs": 5000
       }
     },
-    "map": {
-      "provider": "wms",
-      "url": "https://some-domain.com:443/api/",
-      "format": "image/png",
-      "wms": {
-        "version": "1.3.0",
-        "layers": "",
-        "styles": ""
-      },
-      "client": {
-        "timeoutMs": 60000
-      }
-    },
     "tilesStorage": {
       "providers": [
         {

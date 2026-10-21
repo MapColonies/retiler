@@ -12,7 +12,7 @@ export default async (): Promise<void> => {
   const projectName = config.get('app.project.name');
   const queueName = config.get('app.queueName');
   const pgBoss = pgBossFactory({ ...pgBossConfig, projectName, migrate: true, createSchema: true, supervise: false, schedule: false });
-  const storageProvidersConfig = config.get('app.tilesStorage.providers') ?? [];
+  const storageProvidersConfig = config.get('app.tilesStorage.providers');
 
   const promises = storageProvidersConfig.map(async (provider) => {
     if (provider.kind !== 's3') {

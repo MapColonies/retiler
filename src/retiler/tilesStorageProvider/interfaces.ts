@@ -5,6 +5,4 @@ export interface TileStoragLayout {
   shouldFlipY: boolean;
 }
 
-export type TilesStorageConfig = NonNullable<VectorRetilerSchemaType['app']['tilesStorage']>;
-
-export type StorageProviderConfig = TilesStorageConfig['providers'][number];
+export type StorageProviderConfig = VectorRetilerSchemaType['app']['tilesStorage']['providers'][number];

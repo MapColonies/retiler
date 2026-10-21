@@ -10,12 +10,8 @@ export const ON_SIGNAL = Symbol('onSignal');
 
 export const JOB_QUEUE_PROVIDER = Symbol('JobsQueueProvider');
 export const MAP_PROVIDER = Symbol('MapProvider');
-export const CACHE_PURGER = Symbol('CachePurger');
-export const CACHE_PURGER_CONFIG = Symbol('CachePurgerConfig');
-export const TILE_PROCESSOR = Symbol('TileProcessor');
 export const MAP_SPLITTER_PROVIDER = Symbol('MapSplitterProvider');
 export const TILES_STORAGE_PROVIDERS = Symbol('TilesStorageProviders');
-export const TILES_STORAGE_CONFIG = Symbol('TilesStorageConfig');
 export const METRICS_BUCKETS = Symbol('metrics_buckets');
 
 export const CONSUME_AND_PROCESS_FACTORY = Symbol('ConsumeAndProcessFactory');

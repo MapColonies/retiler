@@ -13,10 +13,6 @@ import type { PgBoss } from 'pg-boss';
 import {
   JOB_QUEUE_PROVIDER,
   MAP_PROVIDER,
-  CACHE_PURGER,
-  CACHE_PURGER_CONFIG,
-  TILE_PROCESSOR,
-  TILES_STORAGE_CONFIG,
   MAP_SPLITTER_PROVIDER,
   MAP_URL,
   QUEUE_NAME,
@@ -43,9 +39,6 @@ import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvide
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
-import { HttpCachePurger } from './retiler/cachePurger/httpCachePurger';
-import { CachePurgerTileProcessor } from './retiler/cachePurgerTileProcessor';
-import { TileProcessor } from './retiler/tileProcessor';
 import { tilesStorageProvidersFactory } from './retiler/tilesStorageProvider/factory';
 import type { ConfigType } from './common/config';
 import { getConfig } from './common/config';
@@ -216,43 +209,17 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
           useFactory: instancePerContainerCachingFactory((container) => {
             const config = container.resolve<ConfigType>(SERVICES.CONFIG);
             const mapProviderType = config.get('app.map.provider');
+
             if (mapProviderType === 'wms') {
               return container.resolve(WmsMapProvider);
-            } else if (mapProviderType === 'arcgis') {
+            }
+            if (mapProviderType === 'arcgis') {
               return container.resolve(ArcgisMapProvider);
             }
           }),
         },
       },
-      {
-        token: TILES_STORAGE_CONFIG,
-        provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
-            return config.get('app.tilesStorage');
-          }),
-        },
-      },
       { token: TILES_STORAGE_PROVIDERS, provider: { useFactory: instancePerContainerCachingFactory(tilesStorageProvidersFactory) } },
-      {
-        token: CACHE_PURGER_CONFIG,
-        provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
-            return config.get('app.cachePurger');
-          }),
-        },
-      },
-      { token: CACHE_PURGER, provider: { useClass: HttpCachePurger } },
-      {
-        token: TILE_PROCESSOR,
-        provider: {
-          useFactory: instancePerContainerCachingFactory((container) => {
-            const config = container.resolve<ConfigType>(SERVICES.CONFIG);
-            return config.get('app.cachePurger') === undefined ? container.resolve(TileProcessor) : container.resolve(CachePurgerTileProcessor);
-          }),
-        },
-      },
       { token: CONSUME_AND_PROCESS_FACTORY, provider: { useFactory: consumeAndProcessFactory } },
       {
         token: ON_SIGNAL,

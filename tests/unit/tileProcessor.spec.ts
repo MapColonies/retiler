@@ -307,6 +307,63 @@ describe('TileProcessor', () => {
       expect(mockedDetiler.setTileDetails).not.toHaveBeenCalled();
     });
 
+    it('should send the tile bbox to shigola instead of fetching, splitting and storing the map', async () => {
+      const shigolaConfigMock = {
+        get: jest.fn().mockImplementation((key: string) => {
+          switch (key) {
+            case 'app.map.provider':
+              return 'shigola';
+            case 'app.map.url':
+              return 'http://shigola/route';
+            default:
+              return configMock.get(key as never);
+          }
+        }),
+        has: jest.fn(),
+      } as unknown as ConfigType;
+      const post = jest.fn().mockResolvedValue({});
+      const client = { get: jest.fn(), post } as unknown as jest.Mocked<AxiosInstance>;
+      const processor = new TileProcessor(
+        logger,
+        tracerMock,
+        undefined,
+        mapSplitterProv,
+        [tilesStorageProv],
+        client,
+        shigolaConfigMock,
+        undefined,
+        new Registry(),
+        []
+      );
+
+      const tile = { x: 0, y: 0, z: 0, metatile: 8, state: 2 };
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(post).toHaveBeenCalledWith('http://shigola/route', { bbox: [-180, -90, 180, 90] });
+      expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
+      expect(tilesStorageProv.deleteTiles).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if map provider is not configured for a non shigola provider', async () => {
+      const processor = new TileProcessor(
+        logger,
+        tracerMock,
+        undefined,
+        mapSplitterProv,
+        [tilesStorageProv],
+        mockedClient,
+        configMock,
+        undefined,
+        new Registry(),
+        []
+      );
+
+      await expect(processor.processTile({ x: 0, y: 0, z: 0, metatile: 8, state: 2 })).rejects.toThrow('map provider is not configured');
+      expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
+    });
+
     it('should skip processing due to detiler detail response having greater updated time', async () => {
       const tile = { x: 0, y: 0, z: 0, metatile: 8 };
 

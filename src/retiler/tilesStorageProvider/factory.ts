@@ -4,9 +4,10 @@ import type { Logger } from '@map-colonies/js-logger';
 import type { FactoryFunction } from 'tsyringe';
 import type { CleanupRegistry } from '@map-colonies/cleanup-registry';
 import type { HttpRequest } from '@smithy/types';
-import { SERVICES, TILES_STORAGE_CONFIG } from '../../common/constants';
+import type { ConfigType } from '@src/common/config';
+import { SERVICES } from '../../common/constants';
 import type { TilesStorageProvider } from '../interfaces';
-import type { StorageProviderConfig, TilesStorageConfig } from './interfaces';
+import type { StorageProviderConfig } from './interfaces';
 import { S3TilesStorage } from './s3';
 import { FsTilesStorage } from './fs';
 
@@ -15,9 +16,11 @@ interface Args {
 }
 
 export const tilesStorageProvidersFactory: FactoryFunction<TilesStorageProvider[]> = (container) => {
+  const config = container.resolve<ConfigType>(SERVICES.CONFIG);
   const logger = container.resolve<Logger>(SERVICES.LOGGER);
   const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
-  const { providers: storageProvidersConfig, layout: tilesStorageLayout } = container.resolve<TilesStorageConfig>(TILES_STORAGE_CONFIG);
+  const storageProvidersConfig = config.get('app.tilesStorage.providers');
+  const tilesStorageLayout = config.get('app.tilesStorage.layout');
 
   if (storageProvidersConfig.length === 0) {
     throw new Error('invalid tiles storage providers configuration: at least one provider is required');

@@ -11,14 +11,6 @@ export interface MapProvider {
   getMap: (tile: TileWithMetadata) => Promise<Buffer>;
 }
 
-export interface ITileProcessor {
-  processTile: (tile: TileWithMetadata) => Promise<void>;
-}
-
-export interface CachePurger {
-  sendPurgeRequest: (tile: TileWithMetadata) => Promise<void>;
-}
-
 export interface MapSplitterProvider {
   splitMap: (tile: TileWithBuffer, filterBlanks?: boolean) => Promise<MapSplitResult>;
 }
