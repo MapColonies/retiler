@@ -1,7 +1,8 @@
-import { AxiosError, type AxiosInstance, AxiosResponse } from 'axios';
+import { AxiosError, type AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { TILEGRID_WORLD_CRS84, tileToBoundingBox } from '@map-colonies/tile-calc';
 import { type Logger } from '@map-colonies/js-logger';
 import { inject, injectable } from 'tsyringe';
+import { type ConfigType } from '../../../common/config';
 import { MAP_URL, SERVICES } from '../../../common/constants';
 import { MapProvider } from '../../interfaces';
 import { timerify } from '../../../common/util';
@@ -13,12 +14,17 @@ interface ShigolaRequest {
 
 @injectable()
 export class ShigolaMapProvider implements MapProvider {
+  private readonly requestConfig: AxiosRequestConfig;
+
   public constructor(
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
     @inject(SERVICES.LOGGER) private readonly logger: Logger,
-    @inject(MAP_URL) private readonly mapUrl: string
+    @inject(MAP_URL) private readonly mapUrl: string,
+    @inject(SERVICES.CONFIG) config: ConfigType
   ) {
-    this.logger.info({ msg: 'initializing map provider', mapUrl, provider: 'shigola' });
+    const mapToken = config.get('app.map.token');
+    this.requestConfig = { headers: mapToken !== undefined ? { authorization: `Bearer ${mapToken}` } : undefined };
+    this.logger.info({ msg: 'initializing map provider', mapUrl, provider: 'shigola', hasToken: mapToken !== undefined });
   }
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
@@ -29,7 +35,12 @@ export class ShigolaMapProvider implements MapProvider {
     try {
       this.logger.debug({ msg: 'sending bbox to shigola', tile: baseTile, parent, mapUrl: this.mapUrl, body });
 
-      const [, duration] = await timerify<AxiosResponse, [string, ShigolaRequest]>(this.axiosClient.post.bind(this.axiosClient), this.mapUrl, body);
+      const [, duration] = await timerify<AxiosResponse, [string, ShigolaRequest, AxiosRequestConfig]>(
+        this.axiosClient.post.bind(this.axiosClient),
+        this.mapUrl,
+        body,
+        this.requestConfig
+      );
 
       this.logger.debug({ msg: 'finished sending bbox to shigola', tile: baseTile, parent, duration, mapUrl: this.mapUrl });
       return Buffer.alloc(0);
