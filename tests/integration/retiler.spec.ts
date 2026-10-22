@@ -1022,6 +1022,118 @@ describe('retiler', function () {
     });
   });
 
+  describe('shigola', function () {
+    let container: DependencyContainer;
+
+    beforeEach(async () => {
+      container = await registerExternalValues({
+        override: [
+          {
+            token: SERVICES.CONFIG,
+            provider: {
+              useValue: {
+                get: (key: string) => {
+                  switch (key) {
+                    case 'app.map.provider':
+                      return 'shigola';
+                    case 'app.map.purgeTargets':
+                      return ['osm'];
+                    case 'app.jobQueue.pgBoss.schema':
+                      return 'public';
+                    default:
+                      return config.get(key);
+                  }
+                },
+              },
+            },
+          },
+          { token: SERVICES.LOGGER, provider: { useValue: logger } },
+          { token: SERVICES.TRACER, provider: { useValue: trace.getTracer('testTracer') } },
+          { token: METRICS_REGISTRY, provider: { useValue: new Registry() } },
+        ],
+        useChild: true,
+      });
+    });
+
+    afterEach(async () => {
+      const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+      const queueName = container.resolve<string>(QUEUE_NAME);
+      await cleanupQueue(pgBoss, queueName);
+    });
+
+    afterAll(async () => {
+      const cleanupRegistry = container.resolve<CleanupRegistry>(SERVICES.CLEANUP_REGISTRY);
+      await cleanupRegistry.trigger();
+      container.reset();
+    });
+
+    describe('Happy path', function () {
+      it(
+        'should send a purge request to shigola without fetching or storing the map',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          detilerPutInterceptor.reply(httpStatusCodes.OK);
+          const shigolaScope = nock(mapUrl)
+            .post(/.*/, { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] })
+            .reply(httpStatusCodes.OK);
+
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const storageProviders = container.resolve<TilesStorageProvider[]>(TILES_STORAGE_PROVIDERS);
+          const storeTilesSpies = storageProviders.map((provider) => jest.spyOn(provider, 'storeTiles'));
+
+          const job = await waitForJobToBeResolved(pgBoss, queueName, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'completed');
+          storeTilesSpies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
+
+          shigolaScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+    });
+
+    describe('Bad path', function () {
+      it(
+        'should fail the job if shigola returns an error',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const shigolaScope = nock(mapUrl).post(/.*/).replyWithError({ message: 'shigola error' });
+
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, queueName, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'shigola error');
+
+          shigolaScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
+    });
+  });
+
   describe('disabled detiler', function () {
     let container: DependencyContainer;
 
