@@ -17,7 +17,7 @@ interface ShigolaRequest {
 @injectable()
 export class ShigolaMapProvider implements MapProvider {
   private readonly requestConfig: AxiosRequestConfig;
-  private readonly targetMap: string;
+  private readonly targets: { map: string }[];
 
   public constructor(
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
@@ -26,9 +26,9 @@ export class ShigolaMapProvider implements MapProvider {
     @inject(SERVICES.CONFIG) config: ConfigType
   ) {
     const mapToken = config.get('app.map.token');
-    this.targetMap = config.get('app.map.targetMap') as string;
+    this.targets = (config.get('app.map.purgeTargets') as string[]).map((map) => ({ map }));
     this.requestConfig = { headers: mapToken !== undefined ? { authorization: `Bearer ${mapToken}` } : undefined };
-    this.logger.info({ msg: 'initializing map provider', mapUrl, provider: 'shigola', targetMap: this.targetMap, hasToken: mapToken !== undefined });
+    this.logger.info({ msg: 'initializing map provider', mapUrl, provider: 'shigola', targets: this.targets, hasToken: mapToken !== undefined });
   }
 
   public async getMap(tile: TileWithMetadata): Promise<Buffer> {
@@ -37,7 +37,7 @@ export class ShigolaMapProvider implements MapProvider {
     const body: ShigolaRequest = {
       bounds: [west, south, east, north],
       zoomRange: { min: tile.z, max: tile.z },
-      targets: [{ map: this.targetMap }],
+      targets: this.targets,
     };
 
     try {

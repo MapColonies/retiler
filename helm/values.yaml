@@ -89,7 +89,7 @@ env:
     provider: arcgis
     url: https://some-domain.com/api/
     token: ''
-    targetMap: ''
+    purgeTargets: []
     format: image/png
     wms:
       version: 1.3.0

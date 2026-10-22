@@ -1036,8 +1036,8 @@ describe('retiler', function () {
                   switch (key) {
                     case 'app.map.provider':
                       return 'shigola';
-                    case 'app.map.targetMap':
-                      return 'osm';
+                    case 'app.map.purgeTargets':
+                      return ['osm'];
                     case 'app.jobQueue.pgBoss.schema':
                       return 'public';
                     default:

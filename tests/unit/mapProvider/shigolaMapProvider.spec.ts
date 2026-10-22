@@ -6,7 +6,7 @@ import { ShigolaMapProvider } from '../../../src/retiler/mapProvider/shigola/shi
 let logger: Logger;
 
 const configWithToken = (token?: string): ConfigType =>
-  ({ get: jest.fn().mockImplementation((key: string) => (key === 'app.map.targetMap' ? 'osm' : token)) }) as unknown as ConfigType;
+  ({ get: jest.fn().mockImplementation((key: string) => (key === 'app.map.purgeTargets' ? ['osm'] : token)) }) as unknown as ConfigType;
 const expectedBody = { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] };
 
 beforeAll(async () => {
