@@ -13,6 +13,8 @@ export const jobAttributes = {
   TILES_BLANK_COUNT: 'tiles.blank_count',
   TILES_OUT_OF_BOUNDS_COUNT: 'tiles.out_of_bounds_count',
   MAP_PROVIDER: 'map.provider',
+  MAP_RESPONSE_STATUS: 'map.response.status',
+  MAP_RESPONSE_BODY: 'map.response.body',
 } satisfies Record<string, string>;
 
 export const spanName = {
