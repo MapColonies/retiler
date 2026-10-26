@@ -1071,7 +1071,8 @@ describe('retiler', function () {
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const shigolaScope = nock(mapUrl)
             .post(/.*/, { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] })
-            .reply(httpStatusCodes.OK, { purged: 1, seeded: 0, skipped: 0, failed: 0, durationMs: 5 });
+            .reply(httpStatusCodes.OK, { purged: 1, skipped: 0, failed: 0, durationMs: 5 });
+          const debugSpy = jest.spyOn(logger, 'debug');
 
           const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
@@ -1090,6 +1091,13 @@ describe('retiler', function () {
           await expect(consumePromise).resolves.not.toThrow();
 
           expect(job).toHaveProperty('state', 'completed');
+          expect(debugSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              msg: 'finished sending bbox to shigola',
+              status: httpStatusCodes.OK,
+              response: { purged: 1, skipped: 0, failed: 0, durationMs: 5 },
+            })
+          );
           storeTilesSpies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
 
           shigolaScope.done();
@@ -1134,7 +1142,7 @@ describe('retiler', function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           const shigolaScope = nock(mapUrl)
             .post(/.*/)
-            .reply(httpStatusCodes.OK, { purged: 0, seeded: 0, skipped: 0, failed: 1, durationMs: 5, error: 'cache unavailable' });
+            .reply(httpStatusCodes.OK, { purged: 0, skipped: 0, failed: 1, durationMs: 5, error: 'cache unavailable' });
 
           const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);

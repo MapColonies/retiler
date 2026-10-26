@@ -8,7 +8,8 @@ let logger: Logger;
 
 const configWithToken = (token?: string): ConfigType =>
   ({ get: jest.fn().mockImplementation((key: string) => (key === 'app.map.shigolaTargets' ? ['osm'] : token)) }) as unknown as ConfigType;
-const successResponse = { purged: 1, seeded: 0, skipped: 0, failed: 0, durationMs: 5 };
+const successResponse = { purged: 1, skipped: 0, failed: 0, durationMs: 5 };
+const seedSuccessResponse = { seeded: 1, skipped: 0, failed: 0, durationMs: 5 };
 const expectedBody = { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] };
 
 beforeAll(async () => {
@@ -36,6 +37,14 @@ describe('ShigolaMapProvider', () => {
 
       expect(buffer).toHaveLength(0);
       expect(post).toHaveBeenCalledWith('http://shigola/route', expectedBody, { headers: undefined });
+    });
+
+    it('should resolve into an empty buffer for a seed response', async function () {
+      post.mockResolvedValue({ status: 200, data: seedSuccessResponse });
+
+      const buffer = await shigolaProv.getMap({ z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' });
+
+      expect(buffer).toHaveLength(0);
     });
 
     it('should add the shigola response to the active span', async function () {
