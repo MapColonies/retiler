@@ -1127,6 +1127,36 @@ describe('retiler', function () {
         },
         LONG_RUNNING_TEST
       );
+
+      it(
+        'should fail the job if shigola reports failed targets',
+        async function () {
+          detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
+          const shigolaScope = nock(mapUrl)
+            .post(/.*/)
+            .reply(httpStatusCodes.OK, { purged: 0, seeded: 0, skipped: 0, failed: 1, durationMs: 5, error: 'cache unavailable' });
+
+          const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
+          const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
+          const queueName = container.resolve<string>(QUEUE_NAME);
+          const jobId = await pgBoss.send({ name: queueName, data: { z: 0, x: 0, y: 0, metatile: 8, parent: 'parent' } });
+
+          const consumePromise = consumeAndProcessFactory(container)();
+
+          const job = await waitForJobToBeResolved(pgBoss, queueName, jobId as string);
+
+          await provider.stopQueue();
+
+          await expect(consumePromise).resolves.not.toThrow();
+
+          expect(job).toHaveProperty('state', 'failed');
+          expect(job).toHaveProperty('output.message', 'shigola failed processing the request, failed: 1, error: cache unavailable');
+
+          shigolaScope.done();
+          detilerScope.done();
+        },
+        LONG_RUNNING_TEST
+      );
     });
   });
 
