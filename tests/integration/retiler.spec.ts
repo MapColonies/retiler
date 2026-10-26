@@ -1033,16 +1033,12 @@ describe('retiler', function () {
             provider: {
               useValue: {
                 get: (key: string) => {
-                  switch (key) {
-                    case 'app.map.provider':
-                      return 'shigola';
-                    case 'app.map.purgeTargets':
-                      return ['osm'];
-                    case 'app.jobQueue.pgBoss.schema':
-                      return 'public';
-                    default:
-                      return config.get(key);
-                  }
+                  const overrides: Record<string, unknown> = {
+                    'app.map.provider': 'shigola',
+                    'app.map.shigolaTargets': ['osm'],
+                    'app.jobQueue.pgBoss.schema': 'public',
+                  };
+                  return key in overrides ? overrides[key] : config.get(key);
                 },
               },
             },
@@ -1069,13 +1065,13 @@ describe('retiler', function () {
 
     describe('Happy path', function () {
       it(
-        'should send a purge request to shigola without fetching or storing the map',
+        'should send a request to shigola without fetching or storing the map',
         async function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const shigolaScope = nock(mapUrl)
             .post(/.*/, { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] })
-            .reply(httpStatusCodes.OK);
+            .reply(httpStatusCodes.OK, { purged: 1, seeded: 0, skipped: 0, failed: 0, durationMs: 5 });
 
           const pgBoss = container.resolve<PgBoss>(SERVICES.PGBOSS);
           const provider = container.resolve<PgBossJobQueueProvider>(JOB_QUEUE_PROVIDER);
