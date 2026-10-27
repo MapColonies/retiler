@@ -7,10 +7,15 @@ interface ShigolaBaseResponse {
   error?: string;
 }
 
+export interface ShigolaTarget {
+  map: string;
+  layers?: string[];
+}
+
 export interface ShigolaRequest {
   bounds: BoundingBox[keyof BoundingBox][];
   zoomRange: { min: number; max: number };
-  targets: { map: string }[];
+  targets: ShigolaTarget[];
 }
 
 export interface ShigolaPurgeResponse extends ShigolaBaseResponse {

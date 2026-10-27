@@ -3,11 +3,12 @@ import { jsLogger, type Logger } from '@map-colonies/js-logger';
 import { trace, type Span } from '@opentelemetry/api';
 import type { ConfigType } from '../../../src/common/config';
 import { ShigolaMapProvider } from '../../../src/retiler/mapProvider/shigola/shigolaMapProvider';
+import type { ShigolaTarget } from '../../../src/retiler/mapProvider/shigola/interfaces';
 
 let logger: Logger;
 
-const configWithToken = (token?: string): ConfigType =>
-  ({ get: jest.fn().mockImplementation((key: string) => (key === 'app.map.shigolaTargets' ? ['osm'] : token)) }) as unknown as ConfigType;
+const configWithToken = (token?: string, targets: ShigolaTarget[] = [{ map: 'osm' }]): ConfigType =>
+  ({ get: jest.fn().mockImplementation((key: string) => (key === 'app.map.shigolaTargets' ? targets : token)) }) as unknown as ConfigType;
 const successResponse = { purged: 1, skipped: 0, failed: 0, durationMs: 5 };
 const seedSuccessResponse = { seeded: 1, skipped: 0, failed: 0, durationMs: 5 };
 const expectedBody = { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] };
@@ -37,6 +38,21 @@ describe('ShigolaMapProvider', () => {
 
       expect(buffer).toHaveLength(0);
       expect(post).toHaveBeenCalledWith('http://shigola/route', expectedBody, { headers: undefined });
+    });
+
+    it('should send the layers of the targets when configured', async function () {
+      post.mockResolvedValue({ status: 200, data: successResponse });
+      const targets = [{ map: 'core', layers: ['buildings'] }, { map: 'osm' }];
+      const shigolaProvWithLayers = new ShigolaMapProvider(
+        { post } as unknown as AxiosInstance,
+        logger,
+        'http://shigola/route',
+        configWithToken(undefined, targets)
+      );
+
+      await shigolaProvWithLayers.getMap({ z: 0, x: 0, y: 0, metatile: 8 });
+
+      expect(post).toHaveBeenCalledWith('http://shigola/route', { ...expectedBody, targets }, { headers: undefined });
     });
 
     it('should resolve into an empty buffer for a seed response', async function () {

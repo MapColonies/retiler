@@ -1035,7 +1035,7 @@ describe('retiler', function () {
                 get: (key: string) => {
                   const overrides: Record<string, unknown> = {
                     'app.map.provider': 'shigola',
-                    'app.map.shigolaTargets': ['osm'],
+                    'app.map.shigolaTargets': [{ map: 'osm', layers: ['buildings'] }],
                     'app.jobQueue.pgBoss.schema': 'public',
                   };
                   return key in overrides ? overrides[key] : config.get(key);
@@ -1070,7 +1070,7 @@ describe('retiler', function () {
           detilerGetInterceptor.reply(httpStatusCodes.NOT_FOUND);
           detilerPutInterceptor.reply(httpStatusCodes.OK);
           const shigolaScope = nock(mapUrl)
-            .post(/.*/, { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm' }] })
+            .post(/.*/, { bounds: [-180, -90, 180, 90], zoomRange: { min: 0, max: 0 }, targets: [{ map: 'osm', layers: ['buildings'] }] })
             .reply(httpStatusCodes.OK, { purged: 1, skipped: 0, failed: 0, durationMs: 5 });
           const debugSpy = jest.spyOn(logger, 'debug');
 

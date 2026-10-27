@@ -9,12 +9,12 @@ import { MapProvider } from '../../interfaces';
 import { timerify } from '../../../common/util';
 import { jobAttributes } from '../../../common/tracing/job';
 import { TileWithMetadata } from '../../types';
-import { ShigolaRequest, ShigolaResponse } from './interfaces';
+import { ShigolaRequest, ShigolaResponse, ShigolaTarget } from './interfaces';
 
 @injectable()
 export class ShigolaMapProvider implements MapProvider {
   private readonly requestConfig: AxiosRequestConfig;
-  private readonly targets: { map: string }[];
+  private readonly targets: ShigolaTarget[];
 
   public constructor(
     @inject(SERVICES.HTTP_CLIENT) private readonly axiosClient: AxiosInstance,
@@ -23,7 +23,7 @@ export class ShigolaMapProvider implements MapProvider {
     @inject(SERVICES.CONFIG) config: ConfigType
   ) {
     const mapToken = config.get('app.map.token');
-    this.targets = (config.get('app.map.shigolaTargets') as string[]).map((map) => ({ map }));
+    this.targets = config.get('app.map.shigolaTargets') as ShigolaTarget[];
     this.requestConfig = { headers: mapToken !== undefined ? { authorization: `Bearer ${mapToken}` } : undefined };
     this.logger.info({ msg: 'initializing map provider', mapUrl, provider: 'shigola', targets: this.targets, hasToken: mapToken !== undefined });
   }
