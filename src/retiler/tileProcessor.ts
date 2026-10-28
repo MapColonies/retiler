@@ -111,6 +111,13 @@ export class TileProcessor {
             return;
           }
 
+          if (this.config.get('app.map.provider') === 'shigola') {
+            await this.fetchMap(tile);
+            await this.runPostProcess(tile, preRenderTimestamp);
+            this.tilesCounter?.inc({ status: MetatileStatus.COMPLETED, z: tile.z });
+            return;
+          }
+
           const mapBuffer = await this.fetchMap(tile);
           const { splittedTiles, isMetatileBlank, blankTiles, outOfBoundsCount } = await this.splitMap(tile, mapBuffer);
 

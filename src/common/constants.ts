@@ -1,4 +1,5 @@
 import { readPackageJsonSync } from '@map-colonies/read-pkg';
+import type { BoundingBox } from '@map-colonies/tile-calc';
 
 export const SERVICE_NAME = readPackageJsonSync().name ?? 'unknown_service';
 export const DEFAULT_SERVER_PORT = 80;
@@ -55,3 +56,5 @@ export const ExitCodes: Record<string, number> = {
 export const MILLISECONDS_IN_SECOND = 1000;
 
 export const TIMESTAMP_REGEX = /timestamp=\d{4}-\d{2}-\d{2}T\d{2}\\?:\d{2}\\?:\d{2}Z/;
+
+export const BOUNDING_BOX_ORDER = ['west', 'south', 'east', 'north'] as const satisfies readonly (keyof BoundingBox)[];

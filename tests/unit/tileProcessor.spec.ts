@@ -307,6 +307,35 @@ describe('TileProcessor', () => {
       expect(mockedDetiler.setTileDetails).not.toHaveBeenCalled();
     });
 
+    it('should only get the map for the shigola provider without splitting and storing it', async () => {
+      const shigolaConfigMock = {
+        get: jest.fn().mockImplementation((key: string) => (key === 'app.map.provider' ? 'shigola' : configMock.get(key as never))),
+        has: jest.fn(),
+      } as unknown as ConfigType;
+      getMap.mockResolvedValue(Buffer.alloc(0));
+      const processor = new TileProcessor(
+        logger,
+        tracerMock,
+        mapProv,
+        mapSplitterProv,
+        [tilesStorageProv],
+        mockedClient,
+        shigolaConfigMock,
+        undefined,
+        new Registry(),
+        []
+      );
+
+      const tile = { x: 0, y: 0, z: 0, metatile: 8, state: 2 };
+
+      await expect(processor.processTile(tile)).resolves.not.toThrow();
+
+      expect(mapProv.getMap).toHaveBeenCalledWith(tile);
+      expect(mapSplitterProv.splitMap).not.toHaveBeenCalled();
+      expect(tilesStorageProv.storeTiles).not.toHaveBeenCalled();
+      expect(tilesStorageProv.deleteTiles).not.toHaveBeenCalled();
+    });
+
     it('should skip processing due to detiler detail response having greater updated time', async () => {
       const tile = { x: 0, y: 0, z: 0, metatile: 8 };
 

@@ -39,6 +39,7 @@ import { ArcgisMapProvider } from './retiler/mapProvider/arcgis/arcgisMapProvide
 import { SharpMapSplitter } from './retiler/mapSplitterProvider/sharp';
 import { consumeAndProcessFactory } from './app';
 import { WmsMapProvider } from './retiler/mapProvider/wms/wmsMapProvider';
+import { ShigolaMapProvider } from './retiler/mapProvider/shigola/shigolaMapProvider';
 import { tilesStorageProvidersFactory } from './retiler/tilesStorageProvider/factory';
 import type { ConfigType } from './common/config';
 import { getConfig } from './common/config';
@@ -208,6 +209,8 @@ export const registerExternalValues = async (options?: RegisterOptions): Promise
 
           if (mapProviderType === 'wms') {
             container.register(MAP_PROVIDER, { useClass: WmsMapProvider });
+          } else if (mapProviderType === 'shigola') {
+            container.register(MAP_PROVIDER, { useClass: ShigolaMapProvider });
           } else {
             container.register(MAP_PROVIDER, { useClass: ArcgisMapProvider });
           }
