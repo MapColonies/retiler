@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [5.2.0](https://github.com/MapColonies/retiler/compare/v5.1.1...v5.2.0) (2026-10-28)
+
+
+### Features
+
+* add a cache purger option (MAPCO-11992) ([#43](https://github.com/MapColonies/retiler/issues/43)) ([7012c29](https://github.com/MapColonies/retiler/commit/7012c29da310d26066c2316ee00afc740771e012))
+
 ## [5.1.1](https://github.com/MapColonies/retiler-new/compare/v5.1.0...v5.1.1) (2026-07-16)
 
 
